@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from "react-native";
 export default function ExpensesScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>Expenses Screen</Text>
+      <Text style={styles.text}>Expenses Screen123</Text>
     </View>
   );
 }
