@@ -1,9 +1,11 @@
+"use client";
+
 import { Tabs, useNavigation } from "expo-router";
 import { TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { DrawerActions } from "@react-navigation/native";
 
-export default function TabLayout() {
+export default function TabsLayout() {
   const navigation = useNavigation();
 
   return (
@@ -29,6 +31,7 @@ export default function TabLayout() {
           ),
         }}
       />
+
       <Tabs.Screen
         name="charts"
         options={{
@@ -38,21 +41,27 @@ export default function TabLayout() {
           ),
         }}
       />
+
       <Tabs.Screen
         name="report"
         options={{
-          title: "Report",
+          title: "Reports",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="document-text-outline" size={size} color={color} />
           ),
         }}
       />
+
       <Tabs.Screen
         name="profile"
         options={{
           title: "Profile",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-circle-outline" size={size} color={color} />
+            <Ionicons
+              name="person-circle-outline"
+              size={size}
+              color={color}
+            />
           ),
         }}
       />

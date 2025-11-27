@@ -1,13 +1,16 @@
 import { View, Text } from "react-native";
-
-export const options = {
-  title: "About Us",
-};
+import BottomTabs from "../../components/_BottomTabs";
 
 export default function AboutUsScreen() {
   return (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-      <Text>About Us</Text>
+    <View style={{ flex: 1 }}>
+      {/* Main Content */}
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <Text style={{ fontSize: 20 }}>About Us</Text>
+      </View>
+
+      {/* Bottom Tabs */}
+      <BottomTabs />
     </View>
   );
 }

@@ -1,3 +1,4 @@
+"use client";
 import { Drawer } from "expo-router/drawer";
 
 export default function RootLayout() {
@@ -11,19 +12,10 @@ export default function RootLayout() {
       {/* Bottom Tabs */}
       <Drawer.Screen
         name="(tabs)"
-        options={{ 
-          drawerLabel: "Home",
-          headerShown: false,
-         }}
+        options={{ drawerLabel: "Home", headerShown: false }}
       />
 
       {/* Individual Drawer Screens */}
-      <Drawer.Screen
-        name="(drawer)"
-        options={{
-          drawerItemStyle: { display: "none" },
-        }}
-      />
       <Drawer.Screen
         name="(drawer)/category"
         options={{ drawerLabel: "Category", title: "Category" }}
@@ -52,7 +44,6 @@ export default function RootLayout() {
         name="(drawer)/contact_us"
         options={{ drawerLabel: "Contact Us", title: "Contact Us" }}
       />
-
     </Drawer>
   );
 }
