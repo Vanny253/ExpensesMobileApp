@@ -11,7 +11,7 @@ export default function BottomTabs() {
   return (
     <View
       style={{
-        height: 72,
+        height: 73,
         flexDirection: "row",
         justifyContent: "space-around",
         alignItems: "center",
@@ -27,7 +27,7 @@ export default function BottomTabs() {
         onPress={() => router.push("/")}
       >
         <Ionicons name="cash-outline" size={22} color={getColor("/")} />
-        <Text style={{ fontSize: 12, color: getColor("/") }}>Expenses</Text>
+        <Text style={{ fontSize: 10, color: getColor("/") }}>Expenses</Text>
       </TouchableOpacity>
 
       {/* Charts Tab */}
@@ -37,7 +37,23 @@ export default function BottomTabs() {
         onPress={() => router.push("/charts")}
       >
         <Ionicons name="pie-chart-outline" size={22} color={getColor("/charts")} />
-        <Text style={{ fontSize: 12, color: getColor("/charts") }}>Charts</Text>
+        <Text style={{ fontSize: 10, color: getColor("/charts") }}>Charts</Text>
+      </TouchableOpacity>
+
+      {/* ADD BUTTON (middle) */}
+      <TouchableOpacity
+        onPress={() => router.push("/add_expense")}
+        style={{
+          width: 50,
+          height: 50,
+          borderRadius: 30,
+          backgroundColor: "#007AFF",
+          justifyContent: "center",
+          alignItems: "center",
+          marginBottom: 50, // floating
+        }}
+      >
+        <Ionicons name="add" size={30} color="#fff" />
       </TouchableOpacity>
 
       {/* Report Tab */}
@@ -47,7 +63,7 @@ export default function BottomTabs() {
         onPress={() => router.push("/report")}
       >
         <Ionicons name="document-text-outline" size={24} color={getColor("/report")} />
-        <Text style={{ fontSize: 12, color: getColor("/report") }}>Report</Text>
+        <Text style={{ fontSize: 10, color: getColor("/report") }}>Report</Text>
       </TouchableOpacity>
 
       {/* Profile Tab */}
@@ -57,7 +73,7 @@ export default function BottomTabs() {
         onPress={() => router.push("/profile")}
       >
         <Ionicons name="person-circle-outline" size={22} color={getColor("/profile")} />
-        <Text style={{ fontSize: 12, color: getColor("/profile") }}>Profile</Text>
+        <Text style={{ fontSize: 10, color: getColor("/profile") }}>Profile</Text>
       </TouchableOpacity>
     </View>
   );

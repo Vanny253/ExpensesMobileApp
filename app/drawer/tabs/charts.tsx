@@ -1,11 +1,9 @@
-"use client";
-
 import { View, Text, StyleSheet } from "react-native";
 
-export default function ReportScreen() {
+export default function ChartsScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>Report Screen</Text>
+      <Text style={styles.text}>Charts Screen</Text>
     </View>
   );
 }

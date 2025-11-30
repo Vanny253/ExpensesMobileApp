@@ -1,11 +1,9 @@
-"use client";
-
 import { View, Text, StyleSheet } from "react-native";
 
-export default function ProfileScreen() {
+export default function ExpensesScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>Profile Screen</Text>
+      <Text style={styles.text}>Expenses Screen12</Text>
     </View>
   );
 }
