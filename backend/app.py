@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from config import *
-from models import db, Expense
+from models import db, Expense, Income
 
 app = Flask(__name__)
 CORS(app)
@@ -38,5 +38,35 @@ def get_expenses():
     ]
     return jsonify(result)
 
+
+
+    # -------------------- Income Endpoints --------------------
+
+# Add income
+@app.post("/income")
+def add_income():
+    data = request.json
+    income = Income(
+        title=data["title"],
+        amount=data["amount"],
+        category=data["category"],
+        date=data["date"]
+    )
+    db.session.add(income)
+    db.session.commit()
+    return jsonify({"message": "Income added"}), 201
+
+# Get all income
+@app.get("/income")
+def get_income():
+    incomes = Income.query.all()
+    result = [
+        {"id": i.id, "title": i.title, "amount": i.amount, "category": i.category, "date": i.date}
+        for i in incomes
+    ]
+    return jsonify(result)
+
 if __name__ == "__main__":
     app.run(debug=True)
+
+

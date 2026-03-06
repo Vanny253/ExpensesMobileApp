@@ -76,6 +76,14 @@ export default function RootLayout() {
             title: "Contact Us",
           }}
         />
+
+        <Drawer.Screen
+          name="income"
+          options={{
+            drawerLabel: "Income",
+            title: "Income",
+          }}
+        />
       </Drawer>
     </GestureHandlerRootView>
   );
