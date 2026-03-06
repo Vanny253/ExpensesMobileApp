@@ -93,11 +93,11 @@ export default function TabsLayout() {
 
     {/* Floating Chatbot Button */}
       <TouchableOpacity
-        onPress={() => router.push("../chatbot")}
+        onPress={() => router.push("../chatbot/chatbot")}
         style={{
           position: "absolute",
-          bottom: 75,            // above the Profile tab
-          right: 10,             // near the right side
+          bottom: 75,            
+          right: 10,             
           width: 50,
           height: 50,
           borderRadius: 30,

@@ -24,25 +24,25 @@ export default function BottomTabs() {
       <TouchableOpacity
         style={{ justifyContent: "center", alignItems: "center", marginTop: -15, marginLeft: -5 }}
         // @ts-ignore
-        onPress={() => router.push("/")}
+        onPress={() => router.push("/drawer/tabs/")}
       >
-        <Ionicons name="cash-outline" size={22} color={getColor("/")} />
-        <Text style={{ fontSize: 10, color: getColor("/") }}>Expenses</Text>
+        <Ionicons name="cash-outline" size={22} color={getColor("/drawer/tabs/index")} />
+        <Text style={{ fontSize: 10, color: getColor("/drawer/tabs/index") }}>Expenses</Text>
       </TouchableOpacity>
 
       {/* Charts Tab */}
       <TouchableOpacity
         style={{ justifyContent: "center", alignItems: "center", marginTop: -15, marginLeft: -5 }}
         // @ts-ignore
-        onPress={() => router.push("/charts")}
+        onPress={() => router.push("/drawer/tabs/charts")}
       >
-        <Ionicons name="pie-chart-outline" size={22} color={getColor("/charts")} />
-        <Text style={{ fontSize: 10, color: getColor("/charts") }}>Charts</Text>
+        <Ionicons name="pie-chart-outline" size={22} color={getColor("/drawer/tabs/charts")} />
+        <Text style={{ fontSize: 10, color: getColor("/drawer/tabs/charts") }}>Charts</Text>
       </TouchableOpacity>
 
       {/* ADD BUTTON (middle) */}
       <TouchableOpacity
-        onPress={() => router.push("/add_expense")}
+        onPress={() => router.push("/drawer/tabs/add_expense")}
         style={{
           width: 50,
           height: 50,
@@ -60,9 +60,9 @@ export default function BottomTabs() {
       <TouchableOpacity
         style={{ justifyContent: "center", alignItems: "center", marginTop: -15 }}
         // @ts-ignore
-        onPress={() => router.push("/report")}
+        onPress={() => router.push("/drawer/tabs/report")}
       >
-        <Ionicons name="document-text-outline" size={24} color={getColor("/report")} />
+        <Ionicons name="document-text-outline" size={24} color={getColor("/drawer/tabs/report")} />
         <Text style={{ fontSize: 10, color: getColor("/report") }}>Report</Text>
       </TouchableOpacity>
 
@@ -70,10 +70,10 @@ export default function BottomTabs() {
       <TouchableOpacity
         style={{ justifyContent: "center", alignItems: "center", marginTop: -15, marginLeft: -5 }}
         // @ts-ignore
-        onPress={() => router.push("/profile")}
+        onPress={() => router.push("/drawer/tabs/profile")}
       >
-        <Ionicons name="person-circle-outline" size={22} color={getColor("/profile")} />
-        <Text style={{ fontSize: 10, color: getColor("/profile") }}>Profile</Text>
+        <Ionicons name="person-circle-outline" size={22} color={getColor("/drawer/tabs/profile")} />
+        <Text style={{ fontSize: 10, color: getColor("/drawer/tabs/profile") }}>Profile</Text>
       </TouchableOpacity>
     </View>
   );
