@@ -10,11 +10,30 @@ export interface Expense {
   date: string;
 }
 
+export interface Income {
+  id: number;
+  title: string;
+  amount: number;
+  category: string;
+  date: string;
+}
+
 export async function addExpense(data: Omit<Expense, "id">) {
   return axios.post(`${API_URL}/expense`, data);
 }
 
 export async function getExpenses(): Promise<Expense[]> {
   const response = await axios.get<Expense[]>(`${API_URL}/expenses`);
+  return response.data;
+}
+
+export async function addIncome(data: Omit<Income, "id">) {
+  const response = await axios.post(`${API_URL}/income`, data);
+  return response.data;
+}
+
+//not sure need to do the get income or not
+export async function getIncome(): Promise<Income[]> {
+  const response = await axios.get<Income[]>(`${API_URL}/income`);
   return response.data;
 }
