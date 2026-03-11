@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { View, Text, FlatList, ActivityIndicator, StyleSheet } from "react-native";
 import { getExpenses } from "../../../api/expenseApi";
+import { useUser } from "../../../context/UserContext";
 
 interface Expense {
   id: number;
+  user_id: number;
   title: string;
   amount: number;
   category: string;
@@ -11,13 +13,15 @@ interface Expense {
 }
 
 export default function ExpensesScreen() {
+  const { user } = useUser(); // <-- get logged-in user
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!user) return; // <-- wait until user exists
     const fetchExpenses = async () => {
       try {
-        const data = await getExpenses();
+        const data = await getExpenses(user.user_id); // <-- pass user_id
         setExpenses(data);
       } catch (err) {
         console.error("Failed to fetch expenses", err);
@@ -27,7 +31,7 @@ export default function ExpensesScreen() {
     };
 
     fetchExpenses();
-  }, []);
+  }, [user]); // <-- re-run when user changes (e.g., after login)
 
   if (loading) {
     return (

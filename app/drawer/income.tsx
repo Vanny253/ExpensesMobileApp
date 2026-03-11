@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { View, Text, FlatList, ActivityIndicator, StyleSheet } from "react-native";
-import { getIncome } from "../../api/expenseApi"; // <-- use your income API
+import { getIncome } from "../../api/expenseApi"; 
+import { useUser } from "../../context/UserContext"; // <-- use the same context as ExpensesScreen
 
 interface Income {
   id: number;
@@ -11,13 +12,16 @@ interface Income {
 }
 
 export default function IncomeScreen() {
+  const { user } = useUser(); // <-- get logged-in user from context
   const [incomeList, setIncomeList] = useState<Income[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!user) return; // <-- wait until user exists
+
     const fetchIncome = async () => {
       try {
-        const data = await getIncome(); // <-- fetch income table
+        const data = await getIncome(user.user_id); // <-- pass user_id
         setIncomeList(data);
       } catch (err) {
         console.error("Failed to fetch income", err);
@@ -27,7 +31,7 @@ export default function IncomeScreen() {
     };
 
     fetchIncome();
-  }, []);
+  }, [user]); // <-- re-run when user changes
 
   if (loading) {
     return (

@@ -1,78 +1,95 @@
-// AddExpense.tsx
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, Button, StyleSheet, Alert, ScrollView, Platform } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { addExpense, addIncome } from "../../../api/expenseApi"; // <-- your API functions
+// app/drawer/tabs/add_expense.tsx
 
-const TransactionForm = ({ type }: { type: 'expense' | 'income' }) => {
-  const [title, setTitle] = useState('');
-  const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState('');
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  TextInput,
+  Button,
+  StyleSheet,
+  Alert,
+  ScrollView,
+} from "react-native";
+import { Picker } from "@react-native-picker/picker";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { addExpense, addIncome } from "../../../api/expenseApi";
+import { useUser } from "../../../context/UserContext";
+
+const TransactionForm = ({ type }: { type: "expense" | "income" }) => {
+  const { user } = useUser();
+
+  const [title, setTitle] = useState("");
+  const [amount, setAmount] = useState("");
+  const [category, setCategory] = useState("");
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const handleSubmit = async () => {
+    if (!user) {
+      Alert.alert("Login Required", "Please login to add transactions.");
+      return;
+    }
+
     if (!title || !amount || !category) {
-      Alert.alert('Error', 'Please fill in all fields.');
+      Alert.alert("Error", "Please fill in all fields.");
       return;
     }
 
     const data = {
-      title,
+      user_id: user.user_id, // ⭐ important
+      title: title,
       amount: parseFloat(amount),
-      category,
-      date: date.toISOString().split('T')[0], // YYYY-MM-DD
+      category: category,
+      date: date.toISOString().split("T")[0],
     };
 
     try {
-      if (type === 'expense') {
+      if (type === "expense") {
         await addExpense(data);
-        Alert.alert('Expense saved!', `Title: ${data.title}, Amount: ${data.amount}`);
+        Alert.alert("Expense Saved", `${title} - RM${amount}`);
       } else {
         await addIncome(data);
-        Alert.alert('Income saved!', `Title: ${data.title}, Amount: ${data.amount}`);
+        Alert.alert("Income Saved", `${title} - RM${amount}`);
       }
 
-      // Clear form after submit
-      setTitle('');
-      setAmount('');
-      setCategory('');
+      // reset form
+      setTitle("");
+      setAmount("");
+      setCategory("");
       setDate(new Date());
-    } catch (error: any) {
+    } catch (error) {
       console.error(error);
-      Alert.alert('Error', 'Failed to save data. Please try again.');
+      Alert.alert("Error", "Failed to save transaction.");
     }
   };
 
-  const showDatePickerModal = () => setShowDatePicker(true);
-
-  const onDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(Platform.OS === 'ios'); // keep open on iOS
+  const onDateChange = (_: any, selectedDate?: Date) => {
+    setShowDatePicker(false);
     if (selectedDate) setDate(selectedDate);
   };
 
-  // Example categories
-  const categories = type === 'expense'
-    ? ['Food', 'Transport', 'Shopping', 'Bills', 'Other']
-    : ['Salary', 'Bonus', 'Gift', 'Investment', 'Other'];
+  const categories =
+    type === "expense"
+      ? ["Food", "Transport", "Shopping", "Bills", "Other"]
+      : ["Salary", "Bonus", "Gift", "Investment", "Other"];
 
   return (
     <View style={styles.formContainer}>
       <Text style={styles.label}>Title</Text>
       <TextInput
         style={styles.input}
+        placeholder={`Enter ${type} title`}
         value={title}
         onChangeText={setTitle}
-        placeholder={`Enter ${type} title`}
       />
 
       <Text style={styles.label}>Amount</Text>
       <TextInput
         style={styles.input}
+        placeholder={`Enter ${type} amount`}
         value={amount}
         onChangeText={setAmount}
-        placeholder={`Enter ${type} amount`}
         keyboardType="numeric"
       />
 
@@ -80,7 +97,7 @@ const TransactionForm = ({ type }: { type: 'expense' | 'income' }) => {
       <View style={styles.pickerContainer}>
         <Picker
           selectedValue={category}
-          onValueChange={(itemValue) => setCategory(itemValue)}
+          onValueChange={(value) => setCategory(value)}
         >
           <Picker.Item label={`Select ${type} category`} value="" />
           {categories.map((cat) => (
@@ -90,16 +107,16 @@ const TransactionForm = ({ type }: { type: 'expense' | 'income' }) => {
       </View>
 
       <Text style={styles.label}>Date</Text>
-      <TouchableOpacity onPress={showDatePickerModal} style={styles.dateButton}>
+
+      <TouchableOpacity
+        style={styles.dateButton}
+        onPress={() => setShowDatePicker(true)}
+      >
         <Text style={styles.dateText}>{date.toDateString()}</Text>
       </TouchableOpacity>
+
       {showDatePicker && (
-        <DateTimePicker
-          value={date}
-          mode="date"
-          display="default"
-          onChange={onDateChange}
-        />
+        <DateTimePicker value={date} mode="date" onChange={onDateChange} />
       )}
 
       <Button title={`Add ${type}`} onPress={handleSubmit} />
@@ -108,96 +125,105 @@ const TransactionForm = ({ type }: { type: 'expense' | 'income' }) => {
 };
 
 const AddExpenseScreen = () => {
-  const [activeTab, setActiveTab] = useState<'expense' | 'income'>('expense');
+  const [activeTab, setActiveTab] = useState<"expense" | "income">("expense");
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       {/* Tabs */}
       <View style={styles.tabsContainer}>
         <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'expense' && styles.activeTab]}
-          onPress={() => setActiveTab('expense')}
+          style={[styles.tabButton, activeTab === "expense" && styles.activeTab]}
+          onPress={() => setActiveTab("expense")}
         >
-          <Text style={[styles.tabText, activeTab === 'expense' && styles.activeTabText]}>Expense</Text>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "expense" && styles.activeTabText,
+            ]}
+          >
+            Expense
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'income' && styles.activeTab]}
-          onPress={() => setActiveTab('income')}
+          style={[styles.tabButton, activeTab === "income" && styles.activeTab]}
+          onPress={() => setActiveTab("income")}
         >
-          <Text style={[styles.tabText, activeTab === 'income' && styles.activeTabText]}>Income</Text>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "income" && styles.activeTabText,
+            ]}
+          >
+            Income
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Form */}
       <TransactionForm type={activeTab} />
     </ScrollView>
   );
 };
 
-// Styles
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
   tabsContainer: {
-    flexDirection: 'row',
-    marginBottom: 20,
+    flexDirection: "row",
     borderBottomWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
+    marginBottom: 20,
   },
   tabButton: {
     flex: 1,
     paddingVertical: 10,
-    alignItems: 'center',
+    alignItems: "center",
   },
   activeTab: {
     borderBottomWidth: 3,
-    borderBottomColor: '#007bff',
+    borderBottomColor: "#007bff",
   },
   tabText: {
     fontSize: 16,
-    color: '#555',
+    color: "#555",
   },
   activeTabText: {
-    color: '#007bff',
-    fontWeight: 'bold',
+    color: "#007bff",
+    fontWeight: "bold",
   },
   formContainer: {
     marginTop: 20,
   },
   label: {
     marginBottom: 5,
-    fontWeight: 'bold',
-    fontSize: 14,
+    fontWeight: "bold",
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    borderColor: "#ccc",
+    padding: 10,
     marginBottom: 15,
     borderRadius: 5,
   },
   pickerContainer: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     borderRadius: 5,
     marginBottom: 15,
   },
   dateButton: {
     padding: 10,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     borderRadius: 5,
+    alignItems: "center",
     marginBottom: 15,
-    alignItems: 'center',
   },
   dateText: {
     fontSize: 16,
-    color: '#333',
   },
 });
 
