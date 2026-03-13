@@ -1,10 +1,10 @@
 // app/api/userApi.ts
 import axios from "axios";
 
-// ---------------- API URL ----------------
-// Replace with your local network IP if using a real device
 // For Android emulator use: 10.0.2.2
 const API_URL = "http://192.168.0.29:5000";
+// const API_URL = "http://10.22.218.65:5000";
+
 
 // ---------------- TYPES ----------------
 export interface User {

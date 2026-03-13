@@ -2,6 +2,8 @@ import axios from "axios";
 
 // const API_URL = "http://10.0.2.2:5000";
 const API_URL = "http://192.168.0.29:5000";
+// const API_URL = "http://10.22.218.65:5000";
+
 
 export interface Expense {
   id: number;
@@ -36,6 +38,17 @@ export async function getExpenses(userId: number): Promise<Expense[]> {
   return response.data;
 }
 
+// Update expense by ID
+export async function updateExpense(expenseId: number, data: Partial<Omit<Expense, "id" | "user_id">>) {
+  return axios.put(`${API_URL}/expense/${expenseId}`, data);
+}
+
+// Delete expense by ID
+export async function deleteExpense(expenseId: number) {
+  return axios.delete(`${API_URL}/expense/${expenseId}`);
+}
+
+
 
 /* ======================
    INCOME FUNCTIONS
@@ -50,4 +63,14 @@ export async function addIncome(data: Omit<Income, "id">) {
 export async function getIncome(userId: number): Promise<Income[]> {
   const response = await axios.get<Income[]>(`${API_URL}/income/${userId}`);
   return response.data;
+}
+
+// Update income by ID
+export async function updateIncome(incomeId: number, data: Partial<Omit<Income, "id" | "user_id">>) {
+  return axios.put(`${API_URL}/income/${incomeId}`, data);
+}
+
+// Delete income by ID
+export async function deleteIncome(incomeId: number) {
+  return axios.delete(`${API_URL}/income/${incomeId}`);
 }

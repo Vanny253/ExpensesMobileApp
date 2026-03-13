@@ -13,5 +13,5 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
-  ]
+, "app/transactionDetail.js", "app/drawer/tabs/index.js"  ]
 }
