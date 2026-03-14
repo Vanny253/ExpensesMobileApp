@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from config import SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS
-from models import db, Expense, Income, User, Budget
+from models import db, Expense, Income, User, Budget, Category
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from sqlalchemy import func
@@ -404,6 +404,71 @@ def delete_budget(budget_id):
     db.session.commit()
 
     return jsonify({"message": "Budget deleted"}), 200
+
+
+
+
+# -----------------------------
+# Category endpoints
+# -----------------------------
+
+# Get all categories for a user and type (expense/income)
+@app.route("/categories/<int:user_id>/<string:type>", methods=["GET"])
+def get_categories(user_id, type):
+
+    categories = Category.query.filter_by(
+        user_id=user_id,
+        type=type
+    ).all()
+
+    result = []
+
+    for c in categories:
+        result.append({
+            "id": c.id,
+            "user_id": c.user_id,
+            "type": c.type,
+            "name": c.name,
+            "icon": c.icon
+        })
+
+    return jsonify(result)
+    return jsonify(result), 200
+
+# Add a new category
+@app.post("/categories")
+def add_category():
+    data = request.json
+    user_id = data.get("user_id")
+    type_ = data.get("type")
+    name = data.get("name")
+
+    if not user_id or not type_ or not name:
+        return jsonify({"message": "user_id, type, and name are required"}), 400
+
+    category = Category(user_id=user_id, type=type_, name=name)
+    db.session.add(category)
+    db.session.commit()
+
+    return jsonify({
+        "id": category.id,
+        "user_id": category.user_id,
+        "type": category.type,
+        "name": category.name
+    }), 201
+
+
+# Delete a category by ID
+@app.delete("/categories/<int:category_id>")
+def delete_category(category_id):
+    category = Category.query.get(category_id)
+    if not category:
+        return jsonify({"message": "Category not found"}), 404
+
+    db.session.delete(category)
+    db.session.commit()
+    return jsonify({"message": "Category deleted"}), 200
+
 
 
 # -------------------- RUN SERVER --------------------

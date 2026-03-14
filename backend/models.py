@@ -15,9 +15,11 @@ class User(db.Model):
     profile_image = db.Column(db.String(255), default="default.png")
     create_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # relationship to expenses and incomes
+    # relationship to other tables
     expenses = db.relationship("Expense", backref="user", lazy=True)
     incomes = db.relationship("Income", backref="user", lazy=True)
+    categories = db.relationship("Category", backref="user", lazy=True)
+
 
 
 class Expense(db.Model):
@@ -49,3 +51,22 @@ class Budget(db.Model):
     month = db.Column(db.Integer, nullable=False)
     year = db.Column(db.Integer, nullable=False)
     create_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class Category(db.Model):
+    __tablename__ = "categories"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.user_id"), nullable=False)
+    type = db.Column(
+        db.Enum("expense", "income", name="category_type"),
+        nullable=False
+    )
+    name = db.Column(db.String(100), nullable=False)
+    icon = db.Column(db.String(50), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow
+    )

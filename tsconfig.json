@@ -13,5 +13,5 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
-, "app/transactionDetail.js", "app/drawer/tabs/index.js", "app/drawer/tabs/add_expense.js", "app/drawer/tabs/_layout.js", "app/drawer/_layout.js", "app/drawer/tabs/profile.js", "app/profile/login.js", "app/profile/signup.js", "app/_layout.js", "app/drawer/budget.js"  ]
+, "app/transactionDetail.js", "app/drawer/tabs/index.js", "app/drawer/tabs/add_expense.js", "app/drawer/tabs/_layout.js", "app/drawer/_layout.js", "app/drawer/tabs/profile.js", "app/profile/login.js", "app/profile/signup.js", "app/_layout.js", "app/drawer/budget.js", "app/drawer/category.js"  ]
 }
