@@ -38,3 +38,14 @@ class Income(db.Model):
     amount = db.Column(db.Float)
     category = db.Column(db.String(100))
     date = db.Column(db.Date)
+
+
+class Budget(db.Model):
+    __tablename__ = "budgets"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.user_id"), nullable=False)
+    category = db.Column(db.String(50), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    month = db.Column(db.Integer, nullable=False)
+    year = db.Column(db.Integer, nullable=False)
+    create_at = db.Column(db.DateTime, default=datetime.utcnow)

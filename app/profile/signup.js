@@ -1,4 +1,4 @@
-// app/profile/signup.tsx
+// app/profile/signup.js
 import React, { useState } from "react";
 import { View, Text, TextInput, Button, Alert, ScrollView, StyleSheet } from "react-native";
 import { signupUser } from "../../api/userApi";
@@ -27,10 +27,11 @@ export default function SignupScreen() {
         gender,
         date_of_birth: dob,
       });
+
       Alert.alert("Signup successful!", "Please login now.");
       router.push("./login"); // go to login page
-    } catch (err: any) {
-      Alert.alert("Signup failed", err.message || "Something went wrong");
+    } catch (err) {
+      Alert.alert("Signup failed", err?.message || "Something went wrong");
     }
   };
 
@@ -45,6 +46,7 @@ export default function SignupScreen() {
         onChangeText={setEmail}
         keyboardType="email-address"
       />
+
       <TextInput
         style={styles.input}
         placeholder="Password"
@@ -52,12 +54,14 @@ export default function SignupScreen() {
         onChangeText={setPassword}
         secureTextEntry
       />
+
       <TextInput
         style={styles.input}
         placeholder="Nickname"
         value={nickname}
         onChangeText={setNickname}
       />
+
       <TextInput
         style={styles.input}
         placeholder="Phone number (optional)"
@@ -65,12 +69,14 @@ export default function SignupScreen() {
         onChangeText={setPhone}
         keyboardType="phone-pad"
       />
+
       <TextInput
         style={styles.input}
         placeholder="Gender (optional)"
         value={gender}
         onChangeText={setGender}
       />
+
       <TextInput
         style={styles.input}
         placeholder="Date of birth (YYYY-MM-DD)"

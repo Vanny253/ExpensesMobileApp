@@ -1,4 +1,4 @@
-// app/profile/login.tsx
+// app/profile/login.js
 import React, { useState } from "react";
 import {
   View,
@@ -10,7 +10,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from "react-native";
-import { loginUser, LoginResponse, User } from "../../api/userApi";
+import { loginUser } from "../../api/userApi";
 import { useUser } from "../../context/UserContext";
 import { router } from "expo-router";
 
@@ -29,20 +29,20 @@ export default function LoginScreen() {
     setLoading(true);
 
     try {
-      const result: LoginResponse = await loginUser({
+      const result = await loginUser({
         email: email.trim(),
         password,
       });
 
       if (!result.user) throw new Error("Login failed: user not found");
 
-      const loggedInUser: User = result.user;
+      const loggedInUser = result.user;
       setUser(loggedInUser); // update context
 
       Alert.alert("Login successful", `Welcome ${loggedInUser.nickname}!`);
 
       router.replace("/drawer/tabs/profile"); // go to profile tab
-    } catch (err: any) {
+    } catch (err) {
       const message =
         typeof err === "string"
           ? err
@@ -66,6 +66,7 @@ export default function LoginScreen() {
         autoCapitalize="none"
         autoFocus
       />
+
       <TextInput
         style={styles.input}
         placeholder="Password"

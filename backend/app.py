@@ -1,9 +1,10 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from config import SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS
-from models import db, Expense, Income, User
+from models import db, Expense, Income, User, Budget
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+from sqlalchemy import func
 
 app = Flask(__name__)
 CORS(app)
@@ -319,7 +320,90 @@ def get_user(user_id):
 
 
 
+# -------------------- BUDGET ENDPOINTS --------------------
+# Add a new budget
+@app.post("/budget")
+def add_budget():
+    data = request.json
+    user_id = data.get("user_id")
+    category = data.get("category")
+    amount = data.get("amount")
+    month = data.get("month")
+    year = data.get("year")
 
+    if not all([user_id, category, amount, month, year]):
+        return jsonify({"message": "Missing required fields"}), 400
+
+    budget = Budget(
+        user_id=user_id,
+        category=category,
+        amount=amount,
+        month=month,
+        year=year,
+        create_at=datetime.now()
+    )
+
+    db.session.add(budget)
+    db.session.commit()
+
+    return jsonify({"message": "Budget created", "budget_id": budget.id}), 201
+
+
+# Get all budgets for a user with spent and remaining
+@app.get("/budget/<int:user_id>")
+def get_budgets(user_id):
+    budgets = Budget.query.filter_by(user_id=user_id).all()
+    result = []
+
+    for b in budgets:
+        spent = db.session.query(func.coalesce(func.sum(Expense.amount), 0)).filter(
+            Expense.user_id == user_id,
+            Expense.category == b.category,
+            func.extract('month', Expense.date) == b.month,
+            func.extract('year', Expense.date) == b.year
+        ).scalar()
+
+        result.append({
+            "id": b.id,
+            "category": b.category,
+            "budget": float(b.amount),
+            "spent": float(spent),
+            "remaining": float(b.amount - spent)
+        })
+
+    return jsonify(result), 200
+
+
+# Update budget amount by ID
+@app.put("/budget/<int:budget_id>")
+def update_budget(budget_id):
+    data = request.json
+    amount = data.get("amount")
+
+    if amount is None:
+        return jsonify({"message": "Amount is required"}), 400
+
+    budget = Budget.query.get(budget_id)
+    if not budget:
+        return jsonify({"message": "Budget not found"}), 404
+
+    budget.amount = amount
+    db.session.commit()
+
+    return jsonify({"message": "Budget updated", "budget_id": budget.id}), 200
+
+
+# Delete a budget
+@app.delete("/budget/<int:budget_id>")
+def delete_budget(budget_id):
+    budget = Budget.query.get(budget_id)
+    if not budget:
+        return jsonify({"message": "Budget not found"}), 404
+
+    db.session.delete(budget)
+    db.session.commit()
+
+    return jsonify({"message": "Budget deleted"}), 200
 
 
 # -------------------- RUN SERVER --------------------

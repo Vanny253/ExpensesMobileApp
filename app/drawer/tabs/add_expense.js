@@ -1,4 +1,4 @@
-// app/drawer/tabs/add_expense.tsx
+// app/drawer/tabs/add_expense.js
 
 import React, { useState } from "react";
 import {
@@ -16,7 +16,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { addExpense, addIncome } from "../../../api/expenseApi";
 import { useUser } from "../../../context/UserContext";
 
-const TransactionForm = ({ type }: { type: "expense" | "income" }) => {
+const TransactionForm = ({ type }) => {
   const { user } = useUser();
 
   const [title, setTitle] = useState("");
@@ -64,7 +64,7 @@ const TransactionForm = ({ type }: { type: "expense" | "income" }) => {
     }
   };
 
-  const onDateChange = (_: any, selectedDate?: Date) => {
+  const onDateChange = (_, selectedDate) => {
     setShowDatePicker(false);
     if (selectedDate) setDate(selectedDate);
   };
@@ -125,7 +125,7 @@ const TransactionForm = ({ type }: { type: "expense" | "income" }) => {
 };
 
 const AddExpenseScreen = () => {
-  const [activeTab, setActiveTab] = useState<"expense" | "income">("expense");
+  const [activeTab, setActiveTab] = useState("expense");
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
