@@ -19,6 +19,10 @@ export default function TabsLayout() {
             </TouchableOpacity>
           ),
           tabBarActiveTintColor: "#007AFF",
+          tabBarStyle: {
+            height: 70,    
+            paddingBottom: 15,
+          },
         }}
       >
         <Tabs.Screen

@@ -14,6 +14,7 @@ import {
 import { Picker } from "@react-native-picker/picker";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { addExpense, addIncome } from "../../../api/expenseApi";
+import { getCategories } from "../../../api/categoryApi";
 import { useUser } from "../../../context/UserContext";
 
 const TransactionForm = ({ type }) => {
@@ -69,10 +70,34 @@ const TransactionForm = ({ type }) => {
     if (selectedDate) setDate(selectedDate);
   };
 
-  const categories =
-    type === "expense"
-      ? ["Food", "Transport", "Shopping", "Bills", "Other"]
-      : ["Salary", "Bonus", "Gift", "Investment", "Other"];
+  const [categories, setCategories] = React.useState([]);
+
+  React.useEffect(() => {
+    const fetchCategories = async () => {
+      if (!user) return;
+
+      try {
+        const customCategories = await getCategories(user.user_id, type);
+
+        // default categories
+        const defaultCats = type === "expense"
+          ? ["Food", "Transport", "Shopping", "Bills", "Other"]
+          : ["Salary", "Bonus", "Gift", "Investment", "Other"];
+
+        // merge default + user-created
+        const allCategories = [
+          ...defaultCats,
+          ...customCategories.map(c => c.name)  // only need the name for Picker
+        ];
+
+        setCategories(allCategories);
+      } catch (err) {
+        console.log("Failed to load categories:", err);
+      }
+    };
+
+  fetchCategories();
+}, [user, type]);
 
   return (
     <View style={styles.formContainer}>

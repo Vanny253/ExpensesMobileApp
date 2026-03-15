@@ -1,15 +1,17 @@
-import React, { useState } from "react";
+// app/drawer/tabs/category.js
+import React, { useState, useEffect } from "react";
 import {
-  SafeAreaView,
   View,
   Text,
   TouchableOpacity,
-  Alert,
   StyleSheet,
+  ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import BottomTabs from "../../components/_BottomTabs";
 import { useUser } from "../../context/UserContext";
+import { getCategories } from "../../api/categoryApi";
+import { router } from "expo-router";
 
 const DEFAULT_EXPENSE_CATEGORIES = [
   { name: "Food", icon: "fast-food" },
@@ -31,28 +33,44 @@ const DEFAULT_INCOME_CATEGORIES = [
 export default function CategoryScreen() {
   const { user } = useUser();
   const [type, setType] = useState("expense");
+  const [customCategories, setCustomCategories] = useState([]);
 
-  const defaultCategories =
+  const allCategories =
     type === "expense"
-      ? DEFAULT_EXPENSE_CATEGORIES
-      : DEFAULT_INCOME_CATEGORIES;
+      ? [...DEFAULT_EXPENSE_CATEGORIES, ...customCategories]
+      : [...DEFAULT_INCOME_CATEGORIES, ...customCategories];
 
+  useEffect(() => {
+    const fetchCategories = async () => {
+      if (!user) return;
+      try {
+        const categoriesFromAPI = await getCategories(user.user_id, type);
+        setCustomCategories(categoriesFromAPI);
+      } catch (error) {
+        console.log("Failed to load categories:", error);
+      }
+    };
+    fetchCategories();
+  }, [user, type]);
+
+  // Guest mode
   if (!user) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.container}>
+      <View style={{ flex: 1 }}>
+        <View style={styles.guestContainer}>
           <Text style={styles.guestText}>
             Guest Mode: Please login to manage categories.
           </Text>
         </View>
         <BottomTabs />
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+    <View style={{ flex: 1 }}>
+      {/* Main Content */}
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
         <Text style={styles.title}>Manage Categories</Text>
 
         {/* Type Toggle */}
@@ -61,26 +79,21 @@ export default function CategoryScreen() {
             style={[styles.typeButton, type === "expense" && styles.activeType]}
             onPress={() => setType("expense")}
           >
-            <Text style={type === "expense" && styles.activeText}>
-              Expense
-            </Text>
+            <Text style={type === "expense" && styles.activeText}>Expense</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.typeButton, type === "income" && styles.activeType]}
             onPress={() => setType("income")}
           >
-            <Text style={type === "income" && styles.activeText}>
-              Income
-            </Text>
+            <Text style={type === "income" && styles.activeText}>Income</Text>
           </TouchableOpacity>
         </View>
 
         <Text style={styles.subtitle}>Categories</Text>
 
-        {/* Category Grid */}
         <View style={styles.defaultContainer}>
-          {defaultCategories.map((cat, index) => (
+          {allCategories.map((cat, index) => (
             <View key={index} style={styles.iconButton}>
               <Ionicons name={cat.icon} size={28} color="#007AFF" />
               <Text style={styles.iconText}>{cat.name}</Text>
@@ -91,29 +104,26 @@ export default function CategoryScreen() {
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() =>
-              Alert.alert("Add Category", "Custom category feature coming soon")
+              router.push({
+                pathname: "/addCategory",
+                params: { type: type },
+              })
             }
           >
             <Ionicons name="add-circle" size={28} color="#28a745" />
             <Text style={styles.iconText}>Add</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
 
-      {/* Bottom Navigation */}
+      {/* Bottom Tabs */}
       <BottomTabs />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    justifyContent: "space-between",
-  },
-
-  container: {
-    flex: 1,
+  scrollContainer: {
     padding: 20,
   },
 
@@ -129,10 +139,17 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
+  guestContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+
   guestText: {
     textAlign: "center",
-    marginTop: 50,
     color: "#FF3B30",
+    fontSize: 16,
   },
 
   typeContainer: {
@@ -162,6 +179,7 @@ const styles = StyleSheet.create({
   defaultContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
+    justifyContent: "flex-start",
   },
 
   iconButton: {
@@ -178,5 +196,6 @@ const styles = StyleSheet.create({
   iconText: {
     marginTop: 5,
     fontSize: 12,
+    textAlign: "center",
   },
 });

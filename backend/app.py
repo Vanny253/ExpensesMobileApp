@@ -432,7 +432,6 @@ def get_categories(user_id, type):
             "icon": c.icon
         })
 
-    return jsonify(result)
     return jsonify(result), 200
 
 # Add a new category
@@ -442,11 +441,14 @@ def add_category():
     user_id = data.get("user_id")
     type_ = data.get("type")
     name = data.get("name")
+    icon = data.get("icon")
 
-    if not user_id or not type_ or not name:
-        return jsonify({"message": "user_id, type, and name are required"}), 400
+    
 
-    category = Category(user_id=user_id, type=type_, name=name)
+    if not user_id or not type_ or not name or not icon:
+        return jsonify({"message": "user_id, type, name, and icon are required"}), 400
+
+    category = Category(user_id=user_id, type=type_, name=name, icon=icon)
     db.session.add(category)
     db.session.commit()
 
@@ -454,7 +456,8 @@ def add_category():
         "id": category.id,
         "user_id": category.user_id,
         "type": category.type,
-        "name": category.name
+        "name": category.name,
+        "icon": category.icon
     }), 201
 
 
