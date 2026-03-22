@@ -1,17 +1,31 @@
+from decimal import Decimal
 from flask import Flask, request, jsonify
+from flask_apscheduler import APScheduler
 from flask_cors import CORS
 from config import SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS
-from models import db, Expense, Income, User, Budget, Category
+from models import db, Expense, Income, User, Budget, Category, RegularPayment  
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from sqlalchemy import func
+from scheduler import register_tasks
+
 
 app = Flask(__name__)
 CORS(app)
 
 app.config["SQLALCHEMY_DATABASE_URI"] = SQLALCHEMY_DATABASE_URI
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = SQLALCHEMY_TRACK_MODIFICATIONS
+
 db.init_app(app)
+
+scheduler = APScheduler()
+scheduler.init_app(app)
+
+# register tasks after initializing scheduler
+from scheduler import register_tasks
+register_tasks(scheduler, app) 
+scheduler.start()
+
 
 # Create tables if they don't exist
 with app.app_context():
@@ -472,6 +486,104 @@ def delete_category(category_id):
     db.session.commit()
     return jsonify({"message": "Category deleted"}), 200
 
+
+# -------------------- REGULAR PAYMENT ENDPOINTS --------------------
+
+# Add a new regular payment
+@app.post("/regular_payments")
+def add_regular_payment():
+    data = request.json
+    print("Incoming data:", data)  # <-- Debug incoming data
+
+    user_id = data.get("user_id")
+    title = data.get("title")
+    type_ = data.get("type")
+    category = data.get("category")
+    frequency = data.get("frequency")
+    start_date_str = data.get("start_date")
+    amount = data.get("amount")
+
+    # Check required fields
+    if not all([user_id, title, type_, category, frequency, start_date_str, amount]):
+        return jsonify({"message": "Missing required fields"}), 400
+
+    try:
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"message": "Invalid date format"}), 400
+
+    payment = RegularPayment(
+        user_id=user_id,
+        title=title,
+        type=type_,
+        category=category,
+        frequency=frequency,
+        start_date=start_date,
+        amount=Decimal(amount)
+    )
+
+    db.session.add(payment)
+    db.session.commit()
+
+    return jsonify({"message": "Regular payment created", "payment_id": payment.id}), 201
+
+
+# Get all regular payments for a user
+@app.get("/regular_payments/<int:user_id>")
+def get_regular_payments(user_id):
+    payments = RegularPayment.query.filter_by(user_id=user_id).all()
+    result = []
+
+    for p in payments:
+        result.append({
+            "id": p.id,
+            "user_id": p.user_id,
+            "title": p.title,
+            "type": p.type,
+            "category": p.category,
+            "frequency": p.frequency,
+            "start_date": p.start_date.strftime("%Y-%m-%d"),
+            "amount": float(p.amount)
+        })
+
+    return jsonify(result), 200
+
+
+# Update a regular payment by ID
+@app.put("/regular_payments/<int:payment_id>")
+def update_regular_payment(payment_id):
+    payment = RegularPayment.query.get(payment_id)
+    if not payment:
+        return jsonify({"message": "Regular payment not found"}), 404
+
+    data = request.json
+
+    # Update only provided fields
+    for field in ["title", "type", "category", "frequency", "start_date", "amount"]:
+        if field in data:
+            if field == "start_date":
+                try:
+                    payment.start_date = datetime.strptime(data[field], "%Y-%m-%d").date()
+                except ValueError:
+                    return jsonify({"message": "Invalid date format"}), 400
+            elif field == "amount":
+                payment.amount = Decimal(data[field])
+            else:
+                setattr(payment, field, data[field])
+    db.session.commit()
+    return jsonify({"message": "Regular payment updated", "payment_id": payment.id}), 200
+
+
+# Delete a regular payment by ID
+@app.delete("/regular_payments/<int:payment_id>")
+def delete_regular_payment(payment_id):
+    payment = RegularPayment.query.get(payment_id)
+    if not payment:
+        return jsonify({"message": "Regular payment not found"}), 404
+
+    db.session.delete(payment)
+    db.session.commit()
+    return jsonify({"message": "Regular payment deleted"}), 200
 
 
 # -------------------- RUN SERVER --------------------

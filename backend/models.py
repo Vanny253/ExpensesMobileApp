@@ -30,6 +30,7 @@ class Expense(db.Model):
     amount = db.Column(db.Float)
     category = db.Column(db.String(100))
     date = db.Column(db.Date)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 class Income(db.Model):
@@ -40,6 +41,7 @@ class Income(db.Model):
     amount = db.Column(db.Float)
     category = db.Column(db.String(100))
     date = db.Column(db.Date)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 class Budget(db.Model):
@@ -70,3 +72,21 @@ class Category(db.Model):
         default=datetime.utcnow,
         onupdate=datetime.utcnow
     )
+
+
+class RegularPayment(db.Model):
+    __tablename__ = "regular_payments"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.user_id"), nullable=False)
+    title = db.Column(db.String(255), nullable=False)
+    type = db.Column(db.Enum('expense', 'income'), nullable=False)
+    category = db.Column(db.String(100), nullable=False)
+    frequency = db.Column(db.Enum('Daily','Weekly','Monthly','Yearly', name="payment_frequency"), nullable=False)    
+    start_date = db.Column(db.Date, nullable=False)      
+    amount = db.Column(db.Numeric(10, 2), nullable=False)
+    last_generated_date = db.Column(db.Date, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<RegularPayment {self.title} | {self.type} | {self.amount}>"

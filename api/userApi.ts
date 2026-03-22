@@ -2,7 +2,7 @@
 import axios from "axios";
 
 // For Android emulator use: 10.0.2.2
-const API_URL = "http://192.168.0.29:5000";
+const API_URL = "http://192.168.0.10:5000";
 // const API_URL = "http://10.22.218.65:5000";
 
 
