@@ -1,47 +1,98 @@
 // app/drawer/tabs/profile.js
 import React from "react";
-import { View, Text, Button, StyleSheet, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+} from "react-native";
 import { useUser } from "../../../context/UserContext";
 import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function ProfileTab() {
   const { user, setUser } = useUser();
 
   const handleLogout = () => {
-    setUser(null);
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: () => setUser(null),
+      },
+    ]);
+  };
+
+  const handleDelete = () => {
+    Alert.alert("Delete Account", "This action cannot be undone!", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          // TODO: call delete API here
+          setUser(null);
+        },
+      },
+    ]);
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView style={styles.container}>
       {user ? (
-        <View style={styles.userContainer}>
-          <Text style={styles.greeting}>Welcome, {user.nickname}!</Text>
+        <>
+          {/* Profile Card */}
+          <View style={styles.card}>
+            <View style={styles.avatar} />
 
-          <Text style={styles.label}>Email:</Text>
-          <Text style={styles.info}>{user.email}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.name}>{user.nickname}</Text>
+              <Text style={styles.email}>{user.email}</Text>
+              <Text style={styles.gender}>
+                {user.gender || "Not specified"}
+              </Text>
+            </View>
 
-          <Text style={styles.label}>Date of Birth:</Text>
-          <Text style={styles.info}>{user.date_of_birth}</Text>
-
-          <View style={styles.buttonContainer}>
-            <Button title="Logout" onPress={handleLogout} color="#FF3B30" />
+            <TouchableOpacity>
+              <Ionicons name="pencil" size={18} color="#666" />
+            </TouchableOpacity>
           </View>
-        </View>
+
+          {/* Actions */}
+          <View style={styles.section}>
+            <TouchableOpacity style={styles.item} onPress={handleLogout}>
+              <Ionicons name="log-out-outline" size={20} color="#333" />
+              <Text style={styles.itemText}>Logout</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.item} onPress={handleDelete}>
+              <Ionicons name="trash-outline" size={20} color="red" />
+              <Text style={[styles.itemText, { color: "red" }]}>
+                Delete Account
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </>
       ) : (
         <View style={styles.guestContainer}>
-          <Text style={styles.greeting}>You are currently a Guest.</Text>
+          <Text style={styles.guestText}>You are currently a Guest</Text>
 
-          <View style={styles.buttonContainer}>
-            <Button
-              title="Login"
-              onPress={() => router.push("/profile/login")}
-            />
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => router.push("/profile/login")}
+          >
+            <Text style={styles.buttonText}>Login</Text>
+          </TouchableOpacity>
 
-            <Button
-              title="Signup"
-              onPress={() => router.push("/profile/signup")}
-            />
-          </View>
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: "#aaa" }]}
+            onPress={() => router.push("/profile/signup")}
+          >
+            <Text style={styles.buttonText}>Signup</Text>
+          </TouchableOpacity>
         </View>
       )}
     </ScrollView>
@@ -50,35 +101,88 @@ export default function ProfileTab() {
 
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
-    justifyContent: "center",
+    flex: 1,
+    backgroundColor: "#f2f2f2",
+    padding: 15,
+  },
+
+  // Profile Card
+  card: {
+    flexDirection: "row",
     alignItems: "center",
-    padding: 20,
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 20,
+    elevation: 2,
   },
-  userContainer: {
-    width: "100%",
-    alignItems: "flex-start",
+
+  avatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#ddd",
+    marginRight: 15,
   },
-  guestContainer: {
-    width: "100%",
-    alignItems: "center",
-  },
-  greeting: {
-    fontSize: 22,
+
+  name: {
+    fontSize: 18,
     fontWeight: "bold",
+  },
+
+  email: {
+    color: "#666",
+    marginTop: 2,
+  },
+
+  gender: {
+    color: "#888",
+    fontSize: 13,
+    marginTop: 2,
+  },
+
+  // Actions
+  section: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    paddingVertical: 10,
+  },
+
+  item: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 15,
+    borderBottomWidth: 1,
+    borderColor: "#eee",
+  },
+
+  itemText: {
+    marginLeft: 10,
+    fontSize: 16,
+  },
+
+  // Guest
+  guestContainer: {
+    alignItems: "center",
+    marginTop: 50,
+  },
+
+  guestText: {
+    fontSize: 18,
     marginBottom: 20,
   },
-  label: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginTop: 10,
+
+  button: {
+    backgroundColor: "#007AFF",
+    padding: 12,
+    borderRadius: 8,
+    width: "80%",
+    alignItems: "center",
+    marginBottom: 10,
   },
-  info: {
-    fontSize: 16,
-    marginBottom: 5,
-  },
-  buttonContainer: {
-    width: "100%",
-    marginTop: 20,
+
+  buttonText: {
+    color: "#fff",
+    fontWeight: "bold",
   },
 });

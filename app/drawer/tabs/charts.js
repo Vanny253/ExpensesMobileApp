@@ -144,37 +144,35 @@ export default function ChartScreen() {
       </ScrollView>
 
       {/* Pie Chart */}
-      {categoryData.length > 0 ? (
+      <View style={styles.chartWrapper}>
         <PieChart
           data={categoryData.map((c) => ({
             name: c.name,
             population: c.population,
             color: c.color,
             legendFontColor: c.legendFontColor,
-            legendFontSize: c.legendFontSize,
+            legendFontSize: 14,
           }))}
           width={screenWidth - 40}
           height={220}
-          chartConfig={{ color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})` }}
+          chartConfig={{
+            color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+          }}
           accessor="population"
           backgroundColor="transparent"
           paddingLeft="15"
           absolute
         />
-      ) : (
-        <Text style={styles.noDataText}>No expenses for this period</Text>
-      )}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { 
-    flex: 1, 
-    paddingHorizontal: 20, 
-    paddingTop: 20, 
-    backgroundColor: "#fff",
-    alignItems: "center",
+    paddingTop: 20,
+    paddingHorizontal: 25,
+    alignItems: "stretch",
   },
   topBar: { 
     flexDirection: "row", 
@@ -217,4 +215,6 @@ const styles = StyleSheet.create({
   activeSubText: { color: "#fff" },
 
   noDataText: { textAlign: "center", fontSize: 16, color: "#666", marginTop: 20 },
+
+  
 });

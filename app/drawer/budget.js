@@ -12,9 +12,11 @@ import {
   ActivityIndicator,
 } from "react-native";
 
+import { Picker } from "@react-native-picker/picker";
 import BottomTabs from "../../components/_BottomTabs";
 import { getBudgets, addBudget } from "../../api/budgetApi";
 import { useUser } from "../../context/UserContext";
+import { getCategories } from "../../api/categoryApi";
 import { useRouter } from "expo-router";
 
 export default function BudgetScreen() {
@@ -25,11 +27,51 @@ export default function BudgetScreen() {
   const [category, setCategory] = useState("");
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState([]);
+
+  const DEFAULT_CATEGORIES = [
+    { name: "Food" },
+    { name: "Transport" },
+    { name: "Billing" },
+    { name: "Shopping" },
+    { name: "Health" },
+    { name: "Entertainment" },
+  ];
+
+  // Load categories
+  const loadCategories = async () => {
+    if (!user) return;
+
+    try {
+      const dbCategories = await getCategories(user.user_id, "expense");
+      const dbNames = dbCategories.map((c) => c.name);
+
+      const defaultNames = DEFAULT_CATEGORIES.map((c) => c.name);
+
+      const mergedNames = [
+        ...defaultNames,
+        ...dbNames.filter((n) => !defaultNames.includes(n)),
+      ];
+
+      const finalCategories = mergedNames.map((name, idx) => ({
+        id: idx,
+        name,
+      }));
+
+      setCategories(finalCategories);
+
+      if (finalCategories.length > 0) {
+        setCategory(finalCategories[0].name);
+      }
+    } catch (err) {
+      console.error(err);
+      Alert.alert("Error", "Failed to load categories");
+    }
+  };
 
   // Load budgets
   const loadBudgets = async () => {
     if (!user) {
-      // Guest mode: reset budgets
       setBudgets([]);
       setLoading(false);
       return;
@@ -48,11 +90,11 @@ export default function BudgetScreen() {
 
   useEffect(() => {
     loadBudgets();
-  }, [user]); // re-run when user changes
+    loadCategories();
+  }, [user]);
 
   // Add budget
   const handleAddBudget = async () => {
-
     if (!user) {
       Alert.alert("Guest Mode", "Please login to add budgets");
       return;
@@ -74,22 +116,25 @@ export default function BudgetScreen() {
         year: now.getFullYear(),
       });
 
-      setCategory("");
       setAmount("");
+
+      // reset category to first
+      if (categories.length > 0) {
+        setCategory(categories[0].name);
+      }
+
       loadBudgets();
     } catch (error) {
       Alert.alert("Error", error.message || "Failed to add budget");
     }
   };
 
-  // Open Budget Detail
   const handleOpenDetail = (budget) => {
-
     if (!user) {
       Alert.alert("Guest Mode", "Please login to view budget details");
       return;
     }
-    
+
     router.push({
       pathname: "/budgetDetail",
       params: {
@@ -109,12 +154,18 @@ export default function BudgetScreen() {
       <View style={styles.container}>
         <Text style={styles.title}>Budget</Text>
 
-        <TextInput
-          placeholder="Category"
-          style={styles.input}
-          value={category}
-          onChangeText={setCategory}
-        />
+        {/* Category Dropdown */}
+        <Text style={styles.label}>Category</Text>
+        <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={category}
+            onValueChange={(val) => setCategory(val)}
+          >
+            {categories.map((c) => (
+              <Picker.Item key={c.id} label={c.name} value={c.name} />
+            ))}
+          </Picker>
+        </View>
 
         <TextInput
           placeholder="Amount"
@@ -151,22 +202,24 @@ export default function BudgetScreen() {
         )}
       </View>
 
-      {/* Bottom Tabs */}
       <BottomTabs />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-  },
+  container: { flex: 1, padding: 20 },
 
   title: {
     fontSize: 24,
     fontWeight: "bold",
     marginBottom: 20,
+  },
+
+  label: {
+    marginTop: 10,
+    marginBottom: 5,
+    fontWeight: "bold",
   },
 
   input: {
@@ -175,6 +228,13 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 10,
     borderRadius: 5,
+  },
+
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 5,
+    marginBottom: 10,
   },
 
   card: {
