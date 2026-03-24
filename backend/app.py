@@ -8,10 +8,17 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from sqlalchemy import func
 from scheduler import register_tasks
+from sqlalchemy.exc import IntegrityError
+import os
+from werkzeug.utils import secure_filename
 
 
 app = Flask(__name__)
 CORS(app)
+
+UPLOAD_FOLDER = "static/uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 app.config["SQLALCHEMY_DATABASE_URI"] = SQLALCHEMY_DATABASE_URI
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = SQLALCHEMY_TRACK_MODIFICATIONS
@@ -333,7 +340,68 @@ def get_user(user_id):
     return jsonify({"message": "User not found"}), 404
 
 
+# -------------------- UPDATE USER INFO --------------------
+@app.put("/user/<int:user_id>")
+def update_user(user_id):
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"message": "User not found"}), 404
 
+    data = request.form
+    file = request.files.get("profile_image")
+
+    try:
+        if "nickname" in data:
+            user.nickname = data["nickname"]
+
+        if "email" in data:
+            user.email = data["email"]
+
+        if "phone_number" in data:
+            user.phone_number = data["phone_number"]
+
+        if "gender" in data:
+            user.gender = data["gender"]
+
+        if "date_of_birth" in data and data["date_of_birth"]:
+            user.date_of_birth = datetime.strptime(
+                data["date_of_birth"], "%Y-%m-%d"
+            ).date()
+
+        # 📸 Save Image
+        if file:
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+            file.save(filepath)
+
+            user.profile_image = filepath
+
+        db.session.commit()
+
+    except ValueError:
+        return jsonify({"message": "Invalid date format"}), 400
+
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"message": "Email already exists"}), 400
+
+    except Exception as e:
+        db.session.rollback()
+        print("ERROR:", str(e))
+        return jsonify({"message": "Server error"}), 500
+
+    return jsonify({
+        "user_id": user.user_id,
+        "email": user.email,
+        "nickname": user.nickname,
+        "phone_number": user.phone_number,
+        "gender": user.gender,
+        "date_of_birth": user.date_of_birth.isoformat() if user.date_of_birth else None,
+        "profile_image": f"http://192.168.0.10:5000/{user.profile_image}" if user.profile_image else None,
+        "create_at": user.create_at.isoformat()
+    }), 200
+
+    
 # -------------------- BUDGET ENDPOINTS --------------------
 # Add a new budget
 @app.post("/budget")

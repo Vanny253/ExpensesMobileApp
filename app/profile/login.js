@@ -37,6 +37,10 @@ export default function LoginScreen() {
       if (!result.user) throw new Error("Login failed: user not found");
 
       const loggedInUser = result.user;
+
+      if (loggedInUser.profile_image && !loggedInUser.profile_image.startsWith("http")) {
+        loggedInUser.profile_image = `http://192.168.0.10:5000/${loggedInUser.profile_image}`;
+      }
       setUser(loggedInUser); // update context
 
       Alert.alert("Login successful", `Welcome ${loggedInUser.nickname}!`);

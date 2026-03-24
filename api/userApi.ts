@@ -60,3 +60,18 @@ export async function getUserInfo(user_id: number): Promise<User> {
     throw error.response?.data || error;
   }
 }
+
+// Update a user profile by user ID
+export const updateUser = async (user_id: number, data: any) => {
+  const response = await axios.put(
+    `${API_URL}/user/${user_id}`,
+    data,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
+  return response.data;
+};
+

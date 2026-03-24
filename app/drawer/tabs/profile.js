@@ -11,6 +11,8 @@ import {
 import { useUser } from "../../../context/UserContext";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "react-native";
+
 
 export default function ProfileTab() {
   const { user, setUser } = useUser();
@@ -46,7 +48,14 @@ export default function ProfileTab() {
         <>
           {/* Profile Card */}
           <View style={styles.card}>
-            <View style={styles.avatar} />
+            <Image
+              source={
+                user?.profile_image
+                  ? { uri: user.profile_image + "?t=" + new Date().getTime() }
+                  : require("../../../assets/images/default.png")
+              }
+              style={styles.avatar}
+            />
 
             <View style={{ flex: 1 }}>
               <Text style={styles.name}>{user.nickname}</Text>
@@ -56,7 +65,8 @@ export default function ProfileTab() {
               </Text>
             </View>
 
-            <TouchableOpacity>
+            {/* PEN ICON: Navigate to Profile Detail */}
+            <TouchableOpacity onPress={() => router.push("/profileDetail")}>
               <Ionicons name="pencil" size={18} color="#666" />
             </TouchableOpacity>
           </View>
@@ -121,8 +131,8 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: "#ddd",
     marginRight: 15,
+    backgroundColor: "#ddd",
   },
 
   name: {
