@@ -90,3 +90,27 @@ class RegularPayment(db.Model):
 
     def __repr__(self):
         return f"<RegularPayment {self.title} | {self.type} | {self.amount}>"
+
+
+class Reminder(db.Model):
+    __tablename__ = 'reminders'
+    reminder_id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.user_id', ondelete="CASCADE"), nullable=False)
+    name = db.Column(db.String(255), nullable=False)
+    frequency = db.Column(db.Enum('once','daily','weekly','monthly'), nullable=False)
+    start_date = db.Column(db.Date, nullable=False)
+    time = db.Column(db.Time, nullable=False)
+    note = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "reminder_id": self.reminder_id,
+            "user_id": self.user_id,
+            "name": self.name,
+            "frequency": self.frequency,
+            "start_date": str(self.start_date),
+            "time": self.time.strftime("%H:%M:%S"),
+            "note": self.note,
+            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        }

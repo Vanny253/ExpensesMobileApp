@@ -1,0 +1,131 @@
+import React, { useEffect, useState } from "react";
+import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { useUser } from "../../../context/UserContext";
+import { getMonthlyReport } from "../../../api/reportApi";
+
+export default function ReportScreen() {
+  const { user } = useUser();
+
+  const [expenses, setExpenses] = useState(0);
+  const [income, setIncome] = useState(0);
+  const [budget, setBudget] = useState(0);
+  const [remaining, setRemaining] = useState(0);
+  
+
+  useEffect(() => {
+    if (user) fetchReport();
+  }, [user]);
+
+  // const fetchReport = async () => {
+  //   try {
+  //     const data = await getMonthlyReport(user.user_id);
+
+  //     setExpenses(data.expenses);
+  //     setIncome(data.income);
+  //     setBudget(data.budget);
+  //     setRemaining(data.remaining);
+  //   } catch (err) {
+  //     console.log("Report Error:", err);
+  //   }
+  // };
+
+  const fetchReport = async () => {
+  try {
+    const month = 3; // March
+    const year = 2026;
+
+    const data = await getMonthlyReport(user.user_id, month, year);
+
+    setExpenses(data.expenses);
+    setIncome(data.income);
+    setBudget(data.budget);
+    setRemaining(data.remaining);
+  } catch (err) {
+    console.log("Report Error:", err);
+  }
+};
+
+  const balance = income - expenses;
+  const percentage = budget > 0 ? (expenses / budget) * 100 : 0;
+
+  // const monthName = new Date().toLocaleString("default", { month: "short" });
+  const monthName = "Mar";
+
+  return (
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>Report</Text>
+
+      {/* Monthly Statistic */}
+      <Text style={styles.sectionTitle}>Monthly Statistic</Text>
+      <View style={styles.row}>
+        <Text style={styles.month}>{monthName}</Text>
+        <View style={styles.statsRow}>
+          <Text>Expenses{"\n"}{expenses}</Text>
+          <Text>Income{"\n"}{income}</Text>
+          <Text>Balance{"\n"}{balance}</Text>
+        </View>
+      </View>
+
+      {/* Monthly Budget */}
+      <Text style={styles.sectionTitle}>Monthly Budget</Text>
+      <View style={styles.budgetContainer}>
+        <View style={styles.circle}>
+          <Text style={styles.circleText}>{percentage.toFixed(0)}%</Text>
+        </View>
+
+        <View>
+          <Text>Remaining: {remaining}</Text>
+          <Text>Budget: {budget}</Text>
+          <Text>Expenses: {expenses}</Text>
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginTop: 20,
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+  },
+  month: {
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  statsRow: {
+    flexDirection: "row",
+    gap: 20,
+  },
+  budgetContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 20,
+    gap: 20,
+  },
+  circle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 6,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  circleText: {
+    fontWeight: "bold",
+  },
+});

@@ -2,7 +2,7 @@ import axios from "axios";
 
 // const API_URL = "http://10.0.2.2:5000";
 const API_URL = "http://192.168.0.10:5000";
-// const API_URL = "http://10.22.218.65:5000";
+// const API_URL = "http://10.138.179.65:5000"; // For physical device
 
 /* ======================
    CATEGORY INTERFACE

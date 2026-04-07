@@ -3,7 +3,7 @@ from flask import Flask, request, jsonify
 from flask_apscheduler import APScheduler
 from flask_cors import CORS
 from config import SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS
-from models import db, Expense, Income, User, Budget, Category, RegularPayment  
+from models import db, Expense, Income, User, Budget, Category, RegularPayment, Reminder
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from sqlalchemy import func
@@ -652,6 +652,127 @@ def delete_regular_payment(payment_id):
     db.session.delete(payment)
     db.session.commit()
     return jsonify({"message": "Regular payment deleted"}), 200
+
+
+
+@app.get("/report/<int:user_id>")
+def get_monthly_report(user_id):
+    month = request.args.get("month", type=int)
+    year = request.args.get("year", type=int)
+
+    # Default = current month/year
+    if not month or not year:
+        from datetime import datetime
+        now = datetime.now()
+        month = now.month
+        year = now.year
+
+    # 1. Total Expenses
+    total_expense = db.session.query(func.coalesce(func.sum(Expense.amount), 0)).filter(
+        Expense.user_id == user_id,
+        func.extract('month', Expense.date) == month,
+        func.extract('year', Expense.date) == year
+    ).scalar()
+
+    # 2. Total Income
+    total_income = db.session.query(func.coalesce(func.sum(Income.amount), 0)).filter(
+        Income.user_id == user_id,
+        func.extract('month', Income.date) == month,
+        func.extract('year', Income.date) == year
+    ).scalar()
+
+    # 3. Total Budget + Remaining
+    budgets = Budget.query.filter_by(user_id=user_id, month=month, year=year).all()
+
+    total_budget = 0
+    total_remaining = 0
+
+    for b in budgets:
+        spent = db.session.query(func.coalesce(func.sum(Expense.amount), 0)).filter(
+            Expense.user_id == user_id,
+            Expense.category == b.category,
+            func.extract('month', Expense.date) == month,
+            func.extract('year', Expense.date) == year
+        ).scalar()
+
+        total_budget += float(b.amount)
+        total_remaining += float(b.amount - spent)
+
+    return jsonify({
+        "expenses": float(total_expense),
+        "income": float(total_income),
+        "balance": float(total_income - total_expense),
+        "budget": float(total_budget),
+        "remaining": float(total_remaining)
+    }), 200
+
+
+# -------------------- REMINDERS ENDPOINTS --------------------
+# Get all reminders for a user
+@app.route("/reminders/<int:user_id>", methods=["GET"])
+def get_reminders(user_id):
+    reminders = Reminder.query.filter_by(user_id=user_id).all()
+    return jsonify([r.to_dict() for r in reminders]), 200
+
+# Add a reminder
+@app.route("/add_reminder", methods=["POST"])
+def add_reminder():
+    data = request.json
+    user = User.query.get(data.get("user_id"))
+    if not user:
+        return jsonify({"error": "User not found"}), 400
+    try:
+        reminder = Reminder(
+            user_id=data["user_id"],
+            name=data["name"],
+            frequency=data["frequency"],
+            start_date=datetime.strptime(data["start_date"], "%Y-%m-%d").date(),
+            time=datetime.strptime(data["time"], "%H:%M:%S").time(),
+            note=data.get("note", "")
+        )
+        db.session.add(reminder)
+        db.session.commit()
+        return jsonify({"message": "Reminder added", "reminder": reminder.to_dict()}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+# Update a reminder
+@app.route("/reminders/<int:reminder_id>", methods=["PUT"])
+def update_reminder(reminder_id):
+    data = request.json
+    reminder = Reminder.query.get(reminder_id)
+    if not reminder:
+        return jsonify({"error": "Reminder not found"}), 404
+    try:
+        reminder.name = data.get("name", reminder.name)
+        reminder.frequency = data.get("frequency", reminder.frequency)
+        if "start_date" in data:
+            reminder.start_date = datetime.strptime(data["start_date"], "%Y-%m-%d").date()
+        if "time" in data:
+            reminder.time = datetime.strptime(data["time"], "%H:%M:%S").time()
+        reminder.note = data.get("note", reminder.note)
+        db.session.commit()
+        return jsonify({"message": "Reminder updated", "reminder": reminder.to_dict()}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+# Delete a reminder
+@app.route("/reminders/<int:reminder_id>", methods=["DELETE"])
+def delete_reminder(reminder_id):
+    reminder = Reminder.query.get(reminder_id)
+    if not reminder:
+        return jsonify({"error": "Reminder not found"}), 404
+    try:
+        db.session.delete(reminder)
+        db.session.commit()
+        return jsonify({"message": "Reminder deleted"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+        
+
 
 
 # -------------------- RUN SERVER --------------------
