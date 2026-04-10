@@ -39,7 +39,7 @@ export default function LoginScreen() {
       const loggedInUser = result.user;
 
       if (loggedInUser.profile_image && !loggedInUser.profile_image.startsWith("http")) {
-        loggedInUser.profile_image = `http://192.168.0.10:5000/${loggedInUser.profile_image}`;
+        loggedInUser.profile_image = `http://172.26.252.65:5000/${loggedInUser.profile_image}`;
       }
       setUser(loggedInUser); // update context
 

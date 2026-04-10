@@ -48,6 +48,13 @@ export default function RegularPaymentDetail() {
     ],
   };
 
+  const formatLocalDate = (date) => {
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  const day = date.getDate().toString().padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
   // Load categories
   const loadCategories = async () => {
     if (!user) return;
@@ -113,7 +120,7 @@ export default function RegularPaymentDetail() {
         type,
         category,
         frequency,
-        start_date: date.toISOString().split("T")[0],
+        start_date: formatLocalDate(date),
         amount: parseFloat(amount),
       });
 

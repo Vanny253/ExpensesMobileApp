@@ -79,7 +79,13 @@ export default function BudgetScreen() {
 
     setLoading(true);
     try {
-      const data = await getBudgets(user.user_id);
+      const now = new Date();
+
+      const data = await getBudgets(
+        user.user_id,
+        now.getMonth() + 1,
+        now.getFullYear()
+      );
       setBudgets(data);
     } catch (error) {
       Alert.alert("Error", error.message || "Failed to load budgets");

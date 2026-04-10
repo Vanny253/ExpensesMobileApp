@@ -1,6 +1,6 @@
 import { Drawer } from "expo-router/drawer";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StyleSheet } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 export default function RootLayout() {
   return (
@@ -74,14 +74,6 @@ export default function RootLayout() {
           options={{
             drawerLabel: "Contact Us",
             title: "Contact Us",
-          }}
-        />
-
-        <Drawer.Screen
-          name="income"
-          options={{
-            drawerLabel: "Income",
-            title: "Income",
           }}
         />
       </Drawer>

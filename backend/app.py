@@ -3,7 +3,7 @@ from flask import Flask, request, jsonify
 from flask_apscheduler import APScheduler
 from flask_cors import CORS
 from config import SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS
-from models import db, Expense, Income, User, Budget, Category, RegularPayment  
+from models import db, Expense, Income, User, Budget, Category, RegularPayment
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from sqlalchemy import func
@@ -431,18 +431,23 @@ def add_budget():
     return jsonify({"message": "Budget created", "budget_id": budget.id}), 201
 
 
-# Get all budgets for a user with spent and remaining
+
 @app.get("/budget/<int:user_id>")
 def get_budgets(user_id):
     budgets = Budget.query.filter_by(user_id=user_id).all()
     result = []
 
+    from datetime import datetime
+    now = datetime.now()
+    current_month = now.month
+    current_year = now.year
+
     for b in budgets:
         spent = db.session.query(func.coalesce(func.sum(Expense.amount), 0)).filter(
             Expense.user_id == user_id,
             Expense.category == b.category,
-            func.extract('month', Expense.date) == b.month,
-            func.extract('year', Expense.date) == b.year
+            func.extract('month', Expense.date) == current_month,
+            func.extract('year', Expense.date) == current_year
         ).scalar()
 
         result.append({
@@ -454,6 +459,7 @@ def get_budgets(user_id):
         })
 
     return jsonify(result), 200
+
 
 
 # Update budget amount by ID
@@ -652,6 +658,95 @@ def delete_regular_payment(payment_id):
     db.session.delete(payment)
     db.session.commit()
     return jsonify({"message": "Regular payment deleted"}), 200
+
+
+
+# -------------------- REPORT ENDPOINTS --------------------
+
+@app.get("/report/monthly/<int:user_id>")
+def get_monthly_report(user_id):
+    month = int(request.args.get("month"))
+    year = int(request.args.get("year"))
+
+    # Total expenses
+    total_expenses = (
+        db.session.query(func.coalesce(func.sum(Expense.amount), 0))
+        .filter(
+            Expense.user_id == user_id,
+            func.extract("month", Expense.date) == month,
+            func.extract("year", Expense.date) == year
+        )
+        .scalar()
+    )
+
+    # Total income
+    total_income = (
+        db.session.query(func.coalesce(func.sum(Income.amount), 0))
+        .filter(
+            Income.user_id == user_id,
+            func.extract("month", Income.date) == month,
+            func.extract("year", Income.date) == year
+        )
+        .scalar()
+    )
+
+    balance = float(total_income - total_expenses)
+
+    return jsonify({
+        "expenses": float(total_expenses),
+        "income": float(total_income),
+        "balance": balance
+    }), 200
+
+
+
+
+@app.get("/budget/monthly/<int:user_id>")
+def get_monthly_budgets(user_id):
+    month = int(request.args.get("month"))
+    year = int(request.args.get("year"))
+
+    try:
+        # Get all budgets for this user for this month/year
+        budgets = Budget.query.filter_by(user_id=user_id).all()
+
+        result = []
+
+        for b in budgets:
+            # Calculate spent from Expense table
+            spent = db.session.query(
+                db.func.coalesce(db.func.sum(Expense.amount), 0)
+            ).filter(
+                Expense.user_id == user_id,
+                Expense.category == b.category,
+                db.extract('month', Expense.date) == month,
+                db.extract('year', Expense.date) == year
+            ).scalar()
+
+            remaining = float(b.amount) - float(spent)
+
+            result.append({
+                "id": b.id,
+                "category": b.category,
+                "budget": float(b.amount),
+                "spent": float(spent),
+                "remaining": float(remaining),
+                "month": b.month,
+                "year": b.year
+            })
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        print("ERROR:", str(e))
+        return jsonify({"message": "Server error", "error": str(e)}), 500
+
+
+
+
+
+
+
 
 
 # -------------------- RUN SERVER --------------------

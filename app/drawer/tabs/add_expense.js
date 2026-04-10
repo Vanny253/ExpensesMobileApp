@@ -1,20 +1,20 @@
 // app/drawer/tabs/add_expense.js
 
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { Picker } from "@react-native-picker/picker";
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  TextInput,
-  Button,
-  StyleSheet,
   Alert,
+  Button,
   ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { Picker } from "@react-native-picker/picker";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import { addExpense, addIncome } from "../../../api/expenseApi";
 import { getCategories } from "../../../api/categoryApi";
+import { addExpense, addIncome } from "../../../api/expenseApi";
 import { useUser } from "../../../context/UserContext";
 
 const TransactionForm = ({ type }) => {
@@ -25,6 +25,13 @@ const TransactionForm = ({ type }) => {
   const [category, setCategory] = useState("");
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const formatLocalDate = (date) => {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+    const day = date.getDate().toString().padStart(2, "0");
+    return `${year}-${month}-${day}`;
+};
 
   const handleSubmit = async () => {
     if (!user) {
@@ -38,11 +45,11 @@ const TransactionForm = ({ type }) => {
     }
 
     const data = {
-      user_id: user.user_id, // ⭐ important
+      user_id: user.user_id,
       title: title,
       amount: parseFloat(amount),
       category: category,
-      date: date.toISOString().split("T")[0],
+      date: formatLocalDate(date),
     };
 
     try {
@@ -81,7 +88,7 @@ const TransactionForm = ({ type }) => {
 
         // default categories
         const defaultCats = type === "expense"
-          ? ["Food", "Transport", "Shopping", "Bills", "Other"]
+          ? ["Food", "Transport", "Shopping", "Billing", "Health", "Other"]
           : ["Salary", "Bonus", "Gift", "Investment", "Other"];
 
         // merge default + user-created
