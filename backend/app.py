@@ -549,6 +549,41 @@ def add_category():
     }), 201
 
 
+# Update category by ID
+@app.route("/categories/<int:category_id>", methods=["PUT"])
+def update_category(category_id):
+
+    category = Category.query.get(category_id)
+
+    if not category:
+        return jsonify({"message": "Category not found"}), 404
+
+    data = request.json
+
+    name = data.get("name")
+    icon = data.get("icon")
+    type_ = data.get("type")
+
+    # Optional updates (only change if provided)
+    if name:
+        category.name = name
+
+    if icon:
+        category.icon = icon
+
+    if type_:
+        category.type = type_
+
+    db.session.commit()
+
+    return jsonify({
+        "id": category.id,
+        "user_id": category.user_id,
+        "type": category.type,
+        "name": category.name,
+        "icon": category.icon
+    }), 200
+
 # Delete a category by ID
 @app.delete("/categories/<int:category_id>")
 def delete_category(category_id):

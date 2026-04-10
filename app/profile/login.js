@@ -13,6 +13,7 @@ import {
 import { loginUser } from "../../api/userApi";
 import { useUser } from "../../context/UserContext";
 import { router } from "expo-router";
+import API_URL from "../../api/config";
 
 export default function LoginScreen() {
   const { setUser } = useUser();
@@ -39,7 +40,7 @@ export default function LoginScreen() {
       const loggedInUser = result.user;
 
       if (loggedInUser.profile_image && !loggedInUser.profile_image.startsWith("http")) {
-        loggedInUser.profile_image = `http://172.26.252.65:5000/${loggedInUser.profile_image}`;
+        loggedInUser.profile_image = `${API_URL}/${loggedInUser.profile_image}`;
       }
       setUser(loggedInUser); // update context
 

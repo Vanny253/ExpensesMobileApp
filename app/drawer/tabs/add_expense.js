@@ -1,8 +1,5 @@
-// app/drawer/tabs/add_expense.js
-
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { Picker } from "@react-native-picker/picker";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Alert,
   Button,
@@ -12,10 +9,81 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Modal,
+  FlatList,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
 import { getCategories } from "../../../api/categoryApi";
 import { addExpense, addIncome } from "../../../api/expenseApi";
 import { useUser } from "../../../context/UserContext";
+
+const STORAGE_KEY = "removed_categories";
+
+/* ---------------- DROPDOWN COMPONENT ---------------- */
+const CategoryDropdown = ({ data, value, onChange, placeholder }) => {
+  const [open, setOpen] = useState(false);
+
+  const selected = data.find((i) => i.name === value);
+
+  return (
+    <>
+      <TouchableOpacity style={styles.dropdown} onPress={() => setOpen(true)}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Ionicons
+            name={selected?.icon || "list"}
+            size={20}
+            color="#007AFF"
+            style={{ marginRight: 8 }}
+          />
+          <Text style={{ fontSize: 16 }}>
+            {value || placeholder}
+          </Text>
+        </View>
+
+        <Ionicons name="chevron-down" size={18} color="#555" />
+      </TouchableOpacity>
+
+      <Modal visible={open} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 10 }}>
+              Select Category
+            </Text>
+
+            <FlatList
+              data={data}
+              keyExtractor={(item) => item.name}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.item}
+                  onPress={() => {
+                    onChange(item.name);
+                    setOpen(false);
+                  }}
+                >
+                  <Ionicons
+                    name={item.icon || "help-circle"}
+                    size={22}
+                    color="#007AFF"
+                    style={{ marginRight: 10 }}
+                  />
+                  <Text style={{ fontSize: 16 }}>{item.name}</Text>
+                </TouchableOpacity>
+              )}
+            />
+
+            <TouchableOpacity onPress={() => setOpen(false)}>
+              <Text style={{ textAlign: "center", marginTop: 10, color: "red" }}>
+                Close
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
+};
 
 const TransactionForm = ({ type }) => {
   const { user } = useUser();
@@ -26,13 +94,90 @@ const TransactionForm = ({ type }) => {
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const formatLocalDate = (date) => {
-    const year = date.getFullYear();
-    const month = (date.getMonth() + 1).toString().padStart(2, "0");
-    const day = date.getDate().toString().padStart(2, "0");
-    return `${year}-${month}-${day}`;
-};
+  const [categories, setCategories] = useState([]);
+  const [removedKeys, setRemovedKeys] = useState([]);
 
+  const getKey = (cat) =>
+    cat.id ? `id:${cat.id}` : `name:${cat.name}`;
+
+  /* ---------------- LOAD REMOVED CATEGORIES ---------------- */
+  useEffect(() => {
+    const loadRemoved = async () => {
+      try {
+        const saved = await AsyncStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          setRemovedKeys(JSON.parse(saved));
+        }
+      } catch (err) {
+        console.log("Failed to load removed categories", err);
+      }
+    };
+
+    loadRemoved();
+  }, []);
+
+  /* ---------------- FETCH CATEGORIES ---------------- */
+  useEffect(() => {
+    const fetchCategories = async () => {
+      if (!user) return;
+
+      try {
+        const customCategories = await getCategories(user.user_id, type);
+
+        const saved = await AsyncStorage.getItem(STORAGE_KEY);
+        const removedKeys = saved ? JSON.parse(saved) : [];
+
+        const defaultCats =
+          type === "expense"
+            ? [
+                { name: "Food", icon: "fast-food" },
+                { name: "Transport", icon: "car" },
+                { name: "Shopping", icon: "cart" },
+                { name: "Billing", icon: "receipt" },
+                { name: "Health", icon: "medkit" },
+                { name: "Other", icon: "ellipsis-horizontal" },
+              ]
+            : [
+                { name: "Salary", icon: "cash" },
+                { name: "Bonus", icon: "wallet" },
+                { name: "Gift", icon: "gift" },
+                { name: "Investment", icon: "trending-up" },
+                { name: "Other", icon: "ellipsis-horizontal" },
+              ];
+
+        const allCategories = [
+          ...defaultCats,
+          ...customCategories.map((c) => ({
+            id: c.id,
+            name: c.name,
+            icon: c.icon || "help-circle",
+          })),
+        ];
+
+        // 🔥 SAME LOGIC AS add_expense.js
+        const getKey = (cat) => cat.id || cat.name;
+
+        const filteredCategories = allCategories.filter((cat) => {
+          const key = getKey(cat);
+          return !removedKeys.includes(key);
+        });
+
+        setCategories(filteredCategories);
+      } catch (err) {
+        console.log("Failed to load categories:", err);
+      }
+    };
+
+    fetchCategories();
+  }, [user, type]);
+
+  /* ---------------- FILTER CATEGORIES ---------------- */
+  const filteredCategories = categories.filter((cat) => {
+    const key = getKey(cat);
+    return !removedKeys.includes(key);
+  });
+
+  /* ---------------- SUBMIT ---------------- */
   const handleSubmit = async () => {
     if (!user) {
       Alert.alert("Login Required", "Please login to add transactions.");
@@ -46,28 +191,27 @@ const TransactionForm = ({ type }) => {
 
     const data = {
       user_id: user.user_id,
-      title: title,
+      title,
       amount: parseFloat(amount),
-      category: category,
-      date: formatLocalDate(date),
+      category,
+      date: date.toISOString().split("T")[0],
     };
 
     try {
       if (type === "expense") {
         await addExpense(data);
-        Alert.alert("Expense Saved", `${title} - RM${amount}`);
       } else {
         await addIncome(data);
-        Alert.alert("Income Saved", `${title} - RM${amount}`);
       }
 
-      // reset form
+      Alert.alert("Success", `${type} saved successfully`);
+
       setTitle("");
       setAmount("");
       setCategory("");
       setDate(new Date());
     } catch (error) {
-      console.error(error);
+      console.log(error);
       Alert.alert("Error", "Failed to save transaction.");
     }
   };
@@ -77,35 +221,7 @@ const TransactionForm = ({ type }) => {
     if (selectedDate) setDate(selectedDate);
   };
 
-  const [categories, setCategories] = React.useState([]);
-
-  React.useEffect(() => {
-    const fetchCategories = async () => {
-      if (!user) return;
-
-      try {
-        const customCategories = await getCategories(user.user_id, type);
-
-        // default categories
-        const defaultCats = type === "expense"
-          ? ["Food", "Transport", "Shopping", "Billing", "Health", "Other"]
-          : ["Salary", "Bonus", "Gift", "Investment", "Other"];
-
-        // merge default + user-created
-        const allCategories = [
-          ...defaultCats,
-          ...customCategories.map(c => c.name)  // only need the name for Picker
-        ];
-
-        setCategories(allCategories);
-      } catch (err) {
-        console.log("Failed to load categories:", err);
-      }
-    };
-
-  fetchCategories();
-}, [user, type]);
-
+  /* ---------------- UI ---------------- */
   return (
     <View style={styles.formContainer}>
       <Text style={styles.label}>Title</Text>
@@ -126,20 +242,14 @@ const TransactionForm = ({ type }) => {
       />
 
       <Text style={styles.label}>Category</Text>
-      <View style={styles.pickerContainer}>
-        <Picker
-          selectedValue={category}
-          onValueChange={(value) => setCategory(value)}
-        >
-          <Picker.Item label={`Select ${type} category`} value="" />
-          {categories.map((cat) => (
-            <Picker.Item key={cat} label={cat} value={cat} />
-          ))}
-        </Picker>
-      </View>
+      <CategoryDropdown
+        data={filteredCategories}
+        value={category}
+        onChange={setCategory}
+        placeholder={`Select ${type} category`}
+      />
 
       <Text style={styles.label}>Date</Text>
-
       <TouchableOpacity
         style={styles.dateButton}
         onPress={() => setShowDatePicker(true)}
@@ -156,39 +266,25 @@ const TransactionForm = ({ type }) => {
   );
 };
 
+/* ---------------- SCREEN ---------------- */
 const AddExpenseScreen = () => {
   const [activeTab, setActiveTab] = useState("expense");
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {/* Tabs */}
       <View style={styles.tabsContainer}>
         <TouchableOpacity
           style={[styles.tabButton, activeTab === "expense" && styles.activeTab]}
           onPress={() => setActiveTab("expense")}
         >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "expense" && styles.activeTabText,
-            ]}
-          >
-            Expense
-          </Text>
+          <Text style={styles.tabText}>Expense</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.tabButton, activeTab === "income" && styles.activeTab]}
           onPress={() => setActiveTab("income")}
         >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "income" && styles.activeTabText,
-            ]}
-          >
-            Income
-          </Text>
+          <Text style={styles.tabText}>Income</Text>
         </TouchableOpacity>
       </View>
 
@@ -197,42 +293,36 @@ const AddExpenseScreen = () => {
   );
 };
 
+export default AddExpenseScreen;
+
+/* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    padding: 20,
-    backgroundColor: "#fff",
-  },
+  container: { flexGrow: 1, padding: 20, backgroundColor: "#fff" },
+
   tabsContainer: {
     flexDirection: "row",
     borderBottomWidth: 1,
     borderColor: "#ccc",
     marginBottom: 20,
   },
+
   tabButton: {
     flex: 1,
     paddingVertical: 10,
     alignItems: "center",
   },
+
   activeTab: {
     borderBottomWidth: 3,
     borderBottomColor: "#007bff",
   },
-  tabText: {
-    fontSize: 16,
-    color: "#555",
-  },
-  activeTabText: {
-    color: "#007bff",
-    fontWeight: "bold",
-  },
-  formContainer: {
-    marginTop: 20,
-  },
-  label: {
-    marginBottom: 5,
-    fontWeight: "bold",
-  },
+
+  tabText: { fontSize: 16, color: "#555" },
+
+  formContainer: { marginTop: 20 },
+
+  label: { marginBottom: 5, fontWeight: "bold" },
+
   input: {
     borderWidth: 1,
     borderColor: "#ccc",
@@ -240,12 +330,40 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     borderRadius: 5,
   },
-  pickerContainer: {
+
+  dropdown: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     borderWidth: 1,
     borderColor: "#ccc",
+    padding: 12,
     borderRadius: 5,
     marginBottom: 15,
   },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    padding: 20,
+  },
+
+  modalBox: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 15,
+    maxHeight: "70%",
+  },
+
+  item: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+
   dateButton: {
     padding: 10,
     borderWidth: 1,
@@ -254,9 +372,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 15,
   },
-  dateText: {
-    fontSize: 16,
-  },
-});
 
-export default AddExpenseScreen;
+  dateText: { fontSize: 16 },
+});

@@ -1,5 +1,5 @@
 // app/transactionDetail.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,7 +8,13 @@ import {
   TextInput,
   Button,
   Alert,
+  TouchableOpacity,
+  Modal,
+  FlatList,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   updateExpense,
@@ -16,26 +22,179 @@ import {
   updateIncome,
   deleteIncome,
 } from "../api/expenseApi";
+import { getCategories } from "../api/categoryApi";
+import { useUser } from "../context/UserContext";
 
+const STORAGE_KEY = "removed_categories";
+
+/* ---------------- CATEGORY DROPDOWN ---------------- */
+const CategoryDropdown = ({ data, value, onChange }) => {
+  const [open, setOpen] = useState(false);
+
+  const selected = data.find((i) => i.name === value);
+
+  return (
+    <>
+      <TouchableOpacity style={styles.dropdown} onPress={() => setOpen(true)}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Ionicons
+            name={selected?.icon || "list"}
+            size={20}
+            color="#007AFF"
+            style={{ marginRight: 8 }}
+          />
+          <Text style={{ fontSize: 16 }}>
+            {value || "Select Category"}
+          </Text>
+        </View>
+
+        <Ionicons name="chevron-down" size={18} color="#555" />
+      </TouchableOpacity>
+
+      <Modal visible={open} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>Select Category</Text>
+
+            <FlatList
+              data={data}
+              keyExtractor={(item) =>
+                item.id ? item.id.toString() : item.name
+              }
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.item}
+                  onPress={() => {
+                    onChange(item.name);
+                    setOpen(false);
+                  }}
+                >
+                  <Ionicons
+                    name={item.icon || "help-circle"}
+                    size={22}
+                    color="#007AFF"
+                    style={{ marginRight: 10 }}
+                  />
+                  <Text style={{ fontSize: 16 }}>{item.name}</Text>
+                </TouchableOpacity>
+              )}
+            />
+
+            <TouchableOpacity onPress={() => setOpen(false)}>
+              <Text style={styles.closeText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
+};
+
+/* ---------------- SCREEN ---------------- */
 export default function TransactionDetailScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams();
-  const { id, type, title, amount, category, date } = params;
+  const { user } = useUser();
 
-  // State for editing
+  const { id, type, title, amount, category, date } = useLocalSearchParams();
+
   const [editTitle, setEditTitle] = useState(title);
-  const [editAmount, setEditAmount] = useState(amount);
+  const [editAmount, setEditAmount] = useState(String(amount));
   const [editCategory, setEditCategory] = useState(category);
+  const [editDate, setEditDate] = useState(date);
 
-  const parsedAmount = parseFloat(amount);
+  const [categories, setCategories] = useState([]);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // Delete transaction
+  /* ---------------- SAME KEY LOGIC AS add_expense.js ---------------- */
+  const getKey = (cat) =>
+    cat.id ? `id:${cat.id}` : `name:${cat.name}`;
+
+  /* ---------------- LOAD CATEGORIES (WITH REMOVE FILTER) ---------------- */
+  useEffect(() => {
+    const fetchCategories = async () => {
+      if (!user) return;
+
+      try {
+        const customCategories = await getCategories(user.user_id, type);
+
+        const saved = await AsyncStorage.getItem(STORAGE_KEY);
+        const removedKeys = saved ? JSON.parse(saved) : [];
+
+        const defaultCats =
+          type === "expense"
+            ? [
+                { name: "Food", icon: "fast-food" },
+                { name: "Transport", icon: "car" },
+                { name: "Shopping", icon: "cart" },
+                { name: "Billing", icon: "receipt" },
+                { name: "Health", icon: "medkit" },
+                { name: "Other", icon: "ellipsis-horizontal" },
+              ]
+            : [
+                { name: "Salary", icon: "cash" },
+                { name: "Bonus", icon: "wallet" },
+                { name: "Gift", icon: "gift" },
+                { name: "Investment", icon: "trending-up" },
+                { name: "Other", icon: "ellipsis-horizontal" },
+              ];
+
+        const allCategories = [
+          ...defaultCats,
+          ...customCategories.map((c) => ({
+            id: c.id,
+            name: c.name,
+            icon: c.icon || "help-circle",
+          })),
+        ];
+
+        /* ✅ IMPORTANT FIX */
+        const filteredCategories = allCategories.filter((cat) => {
+          const key = getKey(cat);
+          return !removedKeys.includes(key);
+        });
+
+        setCategories(filteredCategories);
+      } catch (err) {
+        console.log("Failed to load categories:", err);
+      }
+    };
+
+    fetchCategories();
+  }, [user, type]);
+
+  /* ---------------- UPDATE ---------------- */
+  const handleUpdate = async () => {
+    if (!editTitle || !editAmount || !editCategory || !editDate) {
+      Alert.alert("Error", "Please fill in all fields.");
+      return;
+    }
+
+    const updatedData = {
+      title: editTitle,
+      amount: parseFloat(editAmount),
+      category: editCategory,
+      date: editDate,
+    };
+
+    try {
+      if (type === "expense") {
+        await updateExpense(Number(id), updatedData);
+      } else {
+        await updateIncome(Number(id), updatedData);
+      }
+
+      Alert.alert("Success", "Transaction updated successfully!");
+      router.back();
+    } catch (err) {
+      console.log(err);
+      Alert.alert("Error", "Failed to update transaction.");
+    }
+  };
+
+  /* ---------------- DELETE ---------------- */
   const handleDelete = async () => {
-    Alert.alert("Confirm Delete", "Are you sure you want to delete?", [
-      {
-        text: "Cancel",
-        style: "cancel",
-      },
+    Alert.alert("Confirm Delete", "Are you sure?", [
+      { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
         style: "destructive",
@@ -46,137 +205,138 @@ export default function TransactionDetailScreen() {
             } else {
               await deleteIncome(Number(id));
             }
-            Alert.alert("Deleted", "Transaction deleted successfully!");
-            router.back(); // go back to previous screen
+
+            Alert.alert("Deleted", "Transaction deleted!");
+            router.back();
           } catch (err) {
-            console.error(err);
-            Alert.alert("Error", "Failed to delete transaction.");
+            console.log(err);
+            Alert.alert("Error", "Delete failed.");
           }
         },
       },
     ]);
   };
 
-  // Update transaction
-  const handleUpdate = async () => {
-    if (!editTitle || !editAmount || !editCategory) {
-      Alert.alert("Error", "Please fill in all fields.");
-      return;
-    }
-
-    const updatedData = {
-      title: editTitle,
-      amount: parseFloat(editAmount),
-      category: editCategory,
-      date, // keep original date
-    };
-
-    try {
-      if (type === "expense") {
-        await updateExpense(Number(id), updatedData);
-      } else {
-        await updateIncome(Number(id), updatedData);
-      }
-      Alert.alert("Updated", "Transaction updated successfully!");
-      router.back(); // go back to previous screen
-    } catch (err) {
-      console.error(err);
-      Alert.alert("Error", "Failed to update transaction.");
+  const onDateChange = (_, selectedDate) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      setEditDate(selectedDate.toISOString().split("T")[0]);
     }
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.header}>Transaction Details</Text>
+      <Text style={styles.header}>Edit Transaction</Text>
 
-      <View
-        style={[
-          styles.transactionCard,
-          type === "income"
-            ? { backgroundColor: "#ddffdd" }
-            : { backgroundColor: "#ffdddd" },
-        ]}
-      >
-        <View style={styles.row}>
-          <Text style={styles.label}>Transaction ID:</Text>
-          <Text style={styles.value}>{id}</Text>
-        </View>
+      <View style={styles.card}>
+        <Text style={styles.label}>Title</Text>
+        <TextInput
+          style={styles.input}
+          value={editTitle}
+          onChangeText={setEditTitle}
+        />
 
-        {/* Editable fields */}
-        <View style={styles.row}>
-          <Text style={styles.label}>Title:</Text>
-          <TextInput
-            style={styles.input}
-            value={editTitle}
-            onChangeText={setEditTitle}
+        <Text style={styles.label}>Amount</Text>
+        <TextInput
+          style={styles.input}
+          value={editAmount}
+          onChangeText={setEditAmount}
+          keyboardType="numeric"
+        />
+
+        <Text style={styles.label}>Category</Text>
+        <CategoryDropdown
+          data={categories}
+          value={editCategory}
+          onChange={setEditCategory}
+        />
+
+        <Text style={styles.label}>Date</Text>
+        <TouchableOpacity
+          style={styles.input}
+          onPress={() => setShowDatePicker(true)}
+        >
+          <Text>{editDate}</Text>
+        </TouchableOpacity>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={new Date(editDate)}
+            mode="date"
+            onChange={onDateChange}
           />
-        </View>
+        )}
 
-        <View style={styles.row}>
-          <Text style={styles.label}>Category:</Text>
-          <TextInput
-            style={styles.input}
-            value={editCategory}
-            onChangeText={setEditCategory}
-          />
-        </View>
-
-        <View style={styles.row}>
-          <Text style={styles.label}>Amount:</Text>
-          <TextInput
-            style={styles.input}
-            value={editAmount}
-            keyboardType="numeric"
-            onChangeText={setEditAmount}
-          />
-        </View>
-
-        <View style={styles.row}>
-          <Text style={styles.label}>Date:</Text>
-          <Text style={styles.value}>{new Date(date).toDateString()}</Text>
-        </View>
-
-        <View style={styles.row}>
-          <Text style={styles.label}>Type:</Text>
-          <Text style={styles.value}>{type}</Text>
-        </View>
+        <Text style={styles.label}>Type</Text>
+        <Text style={styles.readOnly}>{type}</Text>
       </View>
 
-      {/* Buttons */}
-      <View style={styles.buttonsContainer}>
-        <Button title="Update" onPress={handleUpdate} color="#007bff" />
+      <View style={styles.buttons}>
+        <Button title="Update Transaction" onPress={handleUpdate} />
         <View style={{ height: 10 }} />
-        <Button title="Delete" onPress={handleDelete} color="#ff3b30" />
+        <Button title="Delete" color="red" onPress={handleDelete} />
       </View>
     </ScrollView>
   );
 }
 
+/* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
   container: { padding: 20, backgroundColor: "#fff" },
-  header: { fontSize: 22, fontWeight: "bold", marginBottom: 20, textAlign: "center" },
-  transactionCard: {
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
+  header: {
+    fontSize: 22,
+    fontWeight: "bold",
+    textAlign: "center",
     marginBottom: 20,
   },
-  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 15 },
-  label: { fontWeight: "bold", fontSize: 16, color: "#555" },
-  value: { fontSize: 16, color: "#333", flex: 1, textAlign: "right" },
+  card: { padding: 20, borderRadius: 12 },
+  label: { fontWeight: "bold", marginBottom: 5, marginTop: 10 },
   input: {
     borderWidth: 1,
     borderColor: "#ccc",
-    padding: 8,
-    borderRadius: 5,
-    flex: 1,
-    textAlign: "right",
+    padding: 12,
+    borderRadius: 8,
   },
-  buttonsContainer: {
+  readOnly: { padding: 12, color: "#333" },
+  dropdown: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    padding: 12,
+    borderRadius: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    padding: 20,
+  },
+  modalBox: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 15,
+    maxHeight: "70%",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  item: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  closeText: {
+    textAlign: "center",
+    marginTop: 10,
+    color: "red",
+  },
+  buttons: {
     marginTop: 20,
   },
 });

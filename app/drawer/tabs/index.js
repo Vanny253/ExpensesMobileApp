@@ -9,7 +9,27 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { getExpenses, getIncome } from "../../../api/expenseApi";
+import { getCategories } from "../../../api/categoryApi";
 import { useUser } from "../../../context/UserContext";
+import { PanGestureHandler } from "react-native-gesture-handler";
+import { Ionicons } from "@expo/vector-icons";
+
+const DEFAULT_EXPENSE_CATEGORIES = [
+  { name: "Food", icon: "fast-food" },
+  { name: "Transport", icon: "car" },
+  { name: "Billing", icon: "receipt" },
+  { name: "Shopping", icon: "cart" },
+  { name: "Health", icon: "medkit" },
+  { name: "Entertainment", icon: "game-controller" },
+];
+
+const DEFAULT_INCOME_CATEGORIES = [
+  { name: "Salary", icon: "cash" },
+  { name: "Gift", icon: "gift" },
+  { name: "Investment", icon: "trending-up" },
+  { name: "Bonus", icon: "wallet" },
+  { name: "Freelance", icon: "laptop" },
+];
 
 export default function MainScreen() {
   const router = useRouter();
@@ -22,16 +42,16 @@ export default function MainScreen() {
   const [totalIncome, setTotalIncome] = useState(0);
   const [balance, setBalance] = useState(0);
 
-  // ✅ Month state
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  // ✅ Display month
+  const [expenseCategories, setExpenseCategories] = useState([]);
+  const [incomeCategories, setIncomeCategories] = useState([]);
+
   const today = currentDate.toLocaleString("default", {
     month: "long",
     year: "numeric",
   });
 
-  // ✅ Navigation functions
   const goToPreviousMonth = () => {
     const prev = new Date(currentDate);
     prev.setMonth(prev.getMonth() - 1);
@@ -44,10 +64,21 @@ export default function MainScreen() {
     setCurrentDate(next);
   };
 
-  // ✅ Prevent future navigation
   const isCurrentMonth =
     currentDate.getMonth() === new Date().getMonth() &&
     currentDate.getFullYear() === new Date().getFullYear();
+
+  // ✅ ICON LOOKUP FIXED
+  const getCategoryIcon = (categoryName, type) => {
+    const list =
+      type === "income"
+        ? [...DEFAULT_INCOME_CATEGORIES, ...incomeCategories]
+        : [...DEFAULT_EXPENSE_CATEGORIES, ...expenseCategories];
+
+    const found = list.find((c) => c.name === categoryName);
+
+    return found?.icon || "help-circle";
+  };
 
   useEffect(() => {
     if (!user) {
@@ -61,24 +92,35 @@ export default function MainScreen() {
 
     const fetchData = async () => {
       setLoading(true);
+
       try {
-        const [expenseData, incomeData] = await Promise.all([
+        const [
+          expenseData,
+          incomeData,
+          expenseCats,
+          incomeCats,
+        ] = await Promise.all([
           getExpenses(user.user_id),
           getIncome(user.user_id),
+          getCategories(user.user_id, "expense"),
+          getCategories(user.user_id, "income"),
         ]);
 
-        // Combine transactions
+        setExpenseCategories(expenseCats || []);
+        setIncomeCategories(incomeCats || []);
+
+        const safeExpenses = Array.isArray(expenseData) ? expenseData : [];
+        const safeIncome = Array.isArray(incomeData) ? incomeData : [];
+
         const allTransactions = [
-          ...expenseData.map((e) => ({ ...e, type: "expense" })),
-          ...incomeData.map((i) => ({ ...i, type: "income" })),
+          ...safeExpenses.map((e) => ({ ...e, type: "expense" })),
+          ...safeIncome.map((i) => ({ ...i, type: "income" })),
         ];
 
-        // Sort latest first
         allTransactions.sort(
           (a, b) => new Date(b.date) - new Date(a.date)
         );
 
-        // Filter by selected month
         const filtered = allTransactions.filter((item) => {
           const itemDate = new Date(item.date);
           return (
@@ -89,14 +131,13 @@ export default function MainScreen() {
 
         setTransactions(filtered);
 
-        // Calculate totals (filtered only)
         const expenseTotal = filtered
           .filter((item) => item.type === "expense")
-          .reduce((sum, item) => sum + item.amount, 0);
+          .reduce((sum, item) => sum + (item.amount || 0), 0);
 
         const incomeTotal = filtered
           .filter((item) => item.type === "income")
-          .reduce((sum, item) => sum + item.amount, 0);
+          .reduce((sum, item) => sum + (item.amount || 0), 0);
 
         setTotalExpense(expenseTotal);
         setTotalIncome(incomeTotal);
@@ -113,23 +154,48 @@ export default function MainScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.date}>{today}</Text>
+      <PanGestureHandler
+        onEnded={(event) => {
+          const { translationX } = event.nativeEvent;
+
+          if (translationX > 50) {
+            goToPreviousMonth();
+          } else if (translationX < -50 && !isCurrentMonth) {
+            goToNextMonth();
+          }
+        }}
+      >
+        <View>
+          <Text style={styles.swipeHint}>
+            ← Swipe to change month →
+          </Text>
+          <Text style={styles.date}>{today}</Text>
+        </View>
+      </PanGestureHandler>
 
       {/* SUMMARY */}
       <View style={styles.summaryContainer}>
-        <View style={[styles.card, { backgroundColor: "#ffdddd" }]}>
-          <Text style={styles.cardTitle}>Expense</Text>
-          <Text style={styles.cardValue}>RM {totalExpense.toFixed(2)}</Text>
+        <View style={styles.balanceCard}>
+          <Text style={styles.balanceTitle}>Total Balance</Text>
+          <Text style={styles.balanceValue}>
+            RM {balance.toFixed(2)}
+          </Text>
         </View>
 
-        <View style={[styles.card, { backgroundColor: "#ddffdd" }]}>
-          <Text style={styles.cardTitle}>Income</Text>
-          <Text style={styles.cardValue}>RM {totalIncome.toFixed(2)}</Text>
-        </View>
+        <View style={styles.rowContainer}>
+          <View style={[styles.smallCard, { backgroundColor: "#ddffdd" }]}>
+            <Text style={styles.cardTitle}>Income</Text>
+            <Text style={styles.cardValue}>
+              RM {totalIncome.toFixed(2)}
+            </Text>
+          </View>
 
-        <View style={[styles.card, { backgroundColor: "#dde7ff" }]}>
-          <Text style={styles.cardTitle}>Balance</Text>
-          <Text style={styles.cardValue}>RM {balance.toFixed(2)}</Text>
+          <View style={[styles.smallCard, { backgroundColor: "#ffdddd" }]}>
+            <Text style={styles.cardTitle}>Expense</Text>
+            <Text style={styles.cardValue}>
+              RM {totalExpense.toFixed(2)}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -171,9 +237,13 @@ export default function MainScreen() {
                       : { backgroundColor: "#ffdddd" },
                   ]}
                 >
-                  <View>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <Ionicons
+                      name={getCategoryIcon(item.category, item.type)}
+                      size={22}
+                      color="#555"
+                    />
                     <Text style={styles.title}>{item.title}</Text>
-                    <Text style={styles.category}>{item.category}</Text>
                   </View>
 
                   <View>
@@ -184,24 +254,6 @@ export default function MainScreen() {
               </TouchableOpacity>
             )}
           />
-
-          {/* MONTH NAVIGATION */}
-          <View style={styles.monthButtonContainer}>
-            <TouchableOpacity style={styles.monthButton} onPress={goToPreviousMonth}>
-              <Text style={styles.monthButtonText}>⬅ Previous</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.monthButton,
-                isCurrentMonth && { backgroundColor: "#ccc" },
-              ]}
-              onPress={goToNextMonth}
-              disabled={isCurrentMonth}
-            >
-              <Text style={styles.monthButtonText}>Next ➡</Text>
-            </TouchableOpacity>
-          </View>
         </>
       )}
 
@@ -214,105 +266,101 @@ export default function MainScreen() {
       )}
 
       {!loading && user && transactions.length === 0 && (
-        <>
-          <Text style={styles.guestText}>
-            No transactions for this month.
-          </Text>
-
-          {/* STILL ALLOW NAVIGATION */}
-          <View style={styles.monthButtonContainer}>
-            <TouchableOpacity style={styles.monthButton} onPress={goToPreviousMonth}>
-              <Text style={styles.monthButtonText}>⬅ Previous</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.monthButton,
-                isCurrentMonth && { backgroundColor: "#ccc" },
-              ]}
-              onPress={goToNextMonth}
-              disabled={isCurrentMonth}
-            >
-              <Text style={styles.monthButtonText}>Next ➡</Text>
-            </TouchableOpacity>
-          </View>
-        </>
+        <Text style={styles.guestText}>
+          No transactions for this month.
+        </Text>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: "#fff" },
-
+  container: {
+    flex: 1,
+    paddingTop: 15,
+    padding: 20,
+    backgroundColor: "#fff",
+  },
   date: {
     fontSize: 18,
     color: "#666",
-    marginBottom: 10,
+    marginBottom: 5,
     textAlign: "center",
     fontWeight: "bold",
   },
-
+  swipeHint: {
+    textAlign: "center",
+    fontSize: 12,
+    color: "#aaa",
+  },
   summaryContainer: {
+    marginBottom: 10,
+  },
+  balanceCard: {
+    backgroundColor: "#f5f5f5",
+    padding: 8,
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  balanceTitle: {
+    fontSize: 14,
+    color: "#666",
+  },
+  balanceValue: {
+    fontSize: 28,
+    fontWeight: "bold",
+  },
+  rowContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 20,
   },
-
-  card: {
+  smallCard: {
     flex: 1,
-    padding: 15,
+    padding: 5,
     borderRadius: 10,
-    marginHorizontal: 5,
     alignItems: "center",
+    marginHorizontal: 5,
   },
-
-  cardTitle: { fontSize: 14, color: "#555" },
-  cardValue: { fontSize: 20, fontWeight: "bold" },
-
+  cardTitle: {
+    fontSize: 14,
+    color: "#555",
+  },
+  cardValue: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginTop: 5,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 10,
   },
-
   transactionCard: {
     flexDirection: "row",
     justifyContent: "space-between",
     padding: 15,
     marginBottom: 10,
     borderRadius: 10,
+    alignItems: "center",
   },
-
-  title: { fontSize: 16, fontWeight: "bold" },
-  category: { color: "#666" },
-  amount: { fontSize: 16, fontWeight: "bold" },
-  dateText: { fontSize: 12, color: "#777" },
-
+  title: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginLeft: 8,
+  },
+  amount: {
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  dateText: {
+    fontSize: 12,
+    color: "#777",
+  },
   guestText: {
     textAlign: "center",
     marginTop: 20,
     fontSize: 16,
     color: "#666",
-  },
-
-  monthButtonContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 15,
-  },
-
-  monthButton: {
-    flex: 1,
-    padding: 12,
-    backgroundColor: "#007AFF",
-    borderRadius: 8,
-    alignItems: "center",
-    marginHorizontal: 5,
-  },
-
-  monthButtonText: {
-    color: "#fff",
-    fontWeight: "bold",
   },
 });
