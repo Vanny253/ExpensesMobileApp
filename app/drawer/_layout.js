@@ -26,6 +26,7 @@ export default function RootLayout() {
           options={{
             drawerLabel: "Category",
             title: "Category",
+            
           }}
         />
 

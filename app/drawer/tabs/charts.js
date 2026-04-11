@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet, Dimensions, ScrollView } from
 import { useUser } from "../../../context/UserContext";
 import { getExpenses } from "../../../api/expenseApi";
 import { PieChart } from "react-native-chart-kit";
+import BackgroundWrapper from "../../../components/backgroundWrapper";
+
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -108,63 +110,65 @@ export default function ChartScreen() {
   }, [user, timeframe, subPeriod]);
 
   return (
-    <View style={styles.container}>
-      {/* Top Bar */}
-      <View style={styles.topBar}>
-        {["week", "month", "year"].map((tf) => (
-          <TouchableOpacity
-            key={tf}
-            style={[styles.topButton, timeframe === tf && styles.activeTopButton]}
-            onPress={() => setTimeframe(tf)}
-          >
-            <Text style={[styles.topButtonText, timeframe === tf && styles.activeTopText]}>
-              {tf.charAt(0).toUpperCase() + tf.slice(1)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+    <BackgroundWrapper>
+      <View style={styles.container}>
+        {/* Top Bar */}
+        <View style={styles.topBar}>
+          {["week", "month", "year"].map((tf) => (
+            <TouchableOpacity
+              key={tf}
+              style={[styles.topButton, timeframe === tf && styles.activeTopButton]}
+              onPress={() => setTimeframe(tf)}
+            >
+              <Text style={[styles.topButtonText, timeframe === tf && styles.activeTopText]}>
+                {tf.charAt(0).toUpperCase() + tf.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-      {/* Sub-bar */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ flexDirection: "row", paddingLeft: 5 }}
-      >
-        {subPeriodsList.map((label, index) => (
-          <TouchableOpacity
-            key={index}
-            style={[styles.subButton, subPeriod === index && styles.activeSubButton]}
-            onPress={() => setSubPeriod(index)}
-          >
-            <Text style={[styles.subButtonText, subPeriod === index && styles.activeSubText]}>
-              {label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+        {/* Sub-bar */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ flexDirection: "row", paddingLeft: 5 }}
+        >
+          {subPeriodsList.map((label, index) => (
+            <TouchableOpacity
+              key={index}
+              style={[styles.subButton, subPeriod === index && styles.activeSubButton]}
+              onPress={() => setSubPeriod(index)}
+            >
+              <Text style={[styles.subButtonText, subPeriod === index && styles.activeSubText]}>
+                {label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
 
-      {/* Pie Chart */}
-      <View style={styles.chartWrapper}>
-        <PieChart
-          data={categoryData.map((c) => ({
-            name: c.name,
-            population: c.population,
-            color: c.color,
-            legendFontColor: c.legendFontColor,
-            legendFontSize: 14,
-          }))}
-          width={screenWidth - 40}
-          height={220}
-          chartConfig={{
-            color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-          }}
-          accessor="population"
-          backgroundColor="transparent"
-          paddingLeft="15"
-          absolute
-        />
+        {/* Pie Chart */}
+        <View style={styles.chartWrapper}>
+          <PieChart
+            data={categoryData.map((c) => ({
+              name: c.name,
+              population: c.population,
+              color: c.color,
+              legendFontColor: c.legendFontColor,
+              legendFontSize: 14,
+            }))}
+            width={screenWidth - 40}
+            height={220}
+            chartConfig={{
+              color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+            }}
+            accessor="population"
+            backgroundColor="transparent"
+            paddingLeft="15"
+            absolute
+          />
+        </View>
       </View>
-    </View>
+    </BackgroundWrapper>
   );
 }
 
@@ -196,9 +200,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#888",
+    borderColor: "#007AFF",
     marginRight: 8,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -207,7 +211,7 @@ const styles = StyleSheet.create({
     borderColor: "#007AFF",
   },
   subButtonText: {
-    color: "#555",
+    color: "#007AFF",
     fontSize: 13,
     fontWeight: "500",
     textAlign: "center",

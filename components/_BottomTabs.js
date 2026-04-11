@@ -6,7 +6,7 @@ export default function BottomTabs() {
   const pathname = usePathname(); // current route path
 
   // function to determine color
-  const getColor = (path: string) => (pathname === path ? "#007AFF" : "grey");
+  const getColor = (path) => (pathname === path ? "#007AFF" : "grey");
 
   return (
     <View
@@ -23,7 +23,6 @@ export default function BottomTabs() {
       {/* Expenses Tab */}
       <TouchableOpacity
         style={{ justifyContent: "center", alignItems: "center", marginTop: -15, marginLeft: -5 }}
-        // @ts-ignore
         onPress={() => router.push("/drawer/tabs/")}
       >
         <Ionicons name="cash-outline" size={22} color={getColor("/drawer/tabs/index")} />
@@ -33,7 +32,6 @@ export default function BottomTabs() {
       {/* Charts Tab */}
       <TouchableOpacity
         style={{ justifyContent: "center", alignItems: "center", marginTop: -15, marginLeft: -5 }}
-        // @ts-ignore
         onPress={() => router.push("/drawer/tabs/charts")}
       >
         <Ionicons name="pie-chart-outline" size={22} color={getColor("/drawer/tabs/charts")} />
@@ -50,7 +48,7 @@ export default function BottomTabs() {
           backgroundColor: "#007AFF",
           justifyContent: "center",
           alignItems: "center",
-          marginBottom: 50, // floating
+          marginBottom: 50,
         }}
       >
         <Ionicons name="add" size={30} color="#fff" />
@@ -59,7 +57,6 @@ export default function BottomTabs() {
       {/* Report Tab */}
       <TouchableOpacity
         style={{ justifyContent: "center", alignItems: "center", marginTop: -15 }}
-        // @ts-ignore
         onPress={() => router.push("/drawer/tabs/report")}
       >
         <Ionicons name="document-text-outline" size={24} color={getColor("/drawer/tabs/report")} />
@@ -69,7 +66,6 @@ export default function BottomTabs() {
       {/* Profile Tab */}
       <TouchableOpacity
         style={{ justifyContent: "center", alignItems: "center", marginTop: -15, marginLeft: -5 }}
-        // @ts-ignore
         onPress={() => router.push("/drawer/tabs/profile")}
       >
         <Ionicons name="person-circle-outline" size={22} color={getColor("/drawer/tabs/profile")} />

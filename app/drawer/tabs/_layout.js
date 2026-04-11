@@ -18,10 +18,13 @@ export default function TabsLayout() {
               <Ionicons name="menu-outline" size={28} />
             </TouchableOpacity>
           ),
+          
           tabBarActiveTintColor: "#007AFF",
+          tabBarInactiveTintColor: "#515151",
           tabBarStyle: {
             height: 70,    
             paddingBottom: 15,
+            backgroundColor: "#a3d2fe",
           },
         }}
       >
@@ -29,6 +32,9 @@ export default function TabsLayout() {
           name="index"
           options={{
             title: "Expenses",
+            headerStyle: {
+              backgroundColor: "#a3d2fe",
+            },
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="cash-outline" size={size} color={color} />
             ),
@@ -39,6 +45,9 @@ export default function TabsLayout() {
           name="charts"
           options={{
             title: "Charts",
+            headerStyle: {
+              backgroundColor: "#a3d2fe",
+            },
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="pie-chart-outline" size={size} color={color} />
             ),
@@ -53,13 +62,13 @@ export default function TabsLayout() {
             tabBarIcon: () => (
               <View
                 style={{
-                  width: 50,
-                  height: 50,
+                  width: 55,
+                  height: 55,
                   borderRadius: 30,
                   backgroundColor: "#007AFF",
                   justifyContent: "center",
                   alignItems: "center",
-                  marginBottom: 20,
+                  marginBottom: 30,
                 }}
               >
                 <Ionicons name="add" size={30} color="#fff" />

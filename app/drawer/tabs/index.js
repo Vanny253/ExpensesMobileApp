@@ -13,6 +13,9 @@ import { getCategories } from "../../../api/categoryApi";
 import { useUser } from "../../../context/UserContext";
 import { PanGestureHandler } from "react-native-gesture-handler";
 import { Ionicons } from "@expo/vector-icons";
+import BackgroundWrapper from "../../../components/backgroundWrapper";
+import { ImageBackground } from "react-native";
+
 
 const DEFAULT_EXPENSE_CATEGORIES = [
   { name: "Food", icon: "fast-food" },
@@ -68,7 +71,6 @@ export default function MainScreen() {
     currentDate.getMonth() === new Date().getMonth() &&
     currentDate.getFullYear() === new Date().getFullYear();
 
-  // ✅ ICON LOOKUP FIXED
   const getCategoryIcon = (categoryName, type) => {
     const list =
       type === "income"
@@ -94,17 +96,13 @@ export default function MainScreen() {
       setLoading(true);
 
       try {
-        const [
-          expenseData,
-          incomeData,
-          expenseCats,
-          incomeCats,
-        ] = await Promise.all([
-          getExpenses(user.user_id),
-          getIncome(user.user_id),
-          getCategories(user.user_id, "expense"),
-          getCategories(user.user_id, "income"),
-        ]);
+        const [expenseData, incomeData, expenseCats, incomeCats] =
+          await Promise.all([
+            getExpenses(user.user_id),
+            getIncome(user.user_id),
+            getCategories(user.user_id, "expense"),
+            getCategories(user.user_id, "income"),
+          ]);
 
         setExpenseCategories(expenseCats || []);
         setIncomeCategories(incomeCats || []);
@@ -153,7 +151,8 @@ export default function MainScreen() {
   }, [user, currentDate]);
 
   return (
-    <View style={styles.container}>
+    <BackgroundWrapper>
+      {/* HEADER */}
       <PanGestureHandler
         onEnded={(event) => {
           const { translationX } = event.nativeEvent;
@@ -175,30 +174,36 @@ export default function MainScreen() {
 
       {/* SUMMARY */}
       <View style={styles.summaryContainer}>
-        <View style={styles.balanceCard}>
+        <ImageBackground
+          source={require("../../../assets/balanceCard1.png")}
+          style={styles.balanceCard}
+          imageStyle={{ borderRadius: 14 }}
+        >
           <Text style={styles.balanceTitle}>Total Balance</Text>
+
           <Text style={styles.balanceValue}>
             RM {balance.toFixed(2)}
           </Text>
-        </View>
 
-        <View style={styles.rowContainer}>
-          <View style={[styles.smallCard, { backgroundColor: "#ddffdd" }]}>
-            <Text style={styles.cardTitle}>Income</Text>
-            <Text style={styles.cardValue}>
-              RM {totalIncome.toFixed(2)}
-            </Text>
-          </View>
+          <View style={styles.rowContainer}>
+            <View style={[styles.smallCard, { backgroundColor: "#ddffdd" }]}>
+              <Text style={styles.cardTitle}>Income</Text>
+              <Text style={styles.cardValue}>
+                RM {totalIncome.toFixed(2)}
+              </Text>
+            </View>
 
-          <View style={[styles.smallCard, { backgroundColor: "#ffdddd" }]}>
-            <Text style={styles.cardTitle}>Expense</Text>
-            <Text style={styles.cardValue}>
-              RM {totalExpense.toFixed(2)}
-            </Text>
+            <View style={[styles.smallCard, { backgroundColor: "#fae8e8" }]}>
+              <Text style={styles.cardTitle}>Expense</Text>
+              <Text style={styles.cardValue}>
+                RM {totalExpense.toFixed(2)}
+              </Text>
+            </View>
           </View>
-        </View>
+        </ImageBackground>
       </View>
 
+      {/* GUEST */}
       {!user && (
         <Text style={styles.guestText}>
           Guest Mode: Please login to add and track transactions.
@@ -229,14 +234,8 @@ export default function MainScreen() {
                   })
                 }
               >
-                <View
-                  style={[
-                    styles.transactionCard,
-                    item.type === "income"
-                      ? { backgroundColor: "#ddffdd" }
-                      : { backgroundColor: "#ffdddd" },
-                  ]}
-                >
+                <View style={styles.transactionCard}>
+                
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <Ionicons
                       name={getCategoryIcon(item.category, item.type)}
@@ -247,7 +246,14 @@ export default function MainScreen() {
                   </View>
 
                   <View>
-                    <Text style={styles.amount}>RM {item.amount}</Text>
+                  <Text
+                    style={[
+                      styles.amount,
+                      { color: item.type === "income" ? "#1aa34a" : "#e03131" }
+                    ]}
+                  >
+                    RM {item.amount}
+                  </Text>
                     <Text style={styles.dateText}>{item.date}</Text>
                   </View>
                 </View>
@@ -257,6 +263,7 @@ export default function MainScreen() {
         </>
       )}
 
+      {/* LOADING */}
       {loading && user && (
         <ActivityIndicator
           size="large"
@@ -265,25 +272,26 @@ export default function MainScreen() {
         />
       )}
 
+      {/* EMPTY */}
       {!loading && user && transactions.length === 0 && (
         <Text style={styles.guestText}>
           No transactions for this month.
         </Text>
       )}
-    </View>
+    </BackgroundWrapper>
   );
 }
 
+/* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingTop: 15,
     padding: 20,
-    backgroundColor: "#fff",
   },
   date: {
     fontSize: 18,
-    color: "#666",
+    color: "#404041",
     marginBottom: 5,
     textAlign: "center",
     fontWeight: "bold",
@@ -291,21 +299,24 @@ const styles = StyleSheet.create({
   swipeHint: {
     textAlign: "center",
     fontSize: 12,
-    color: "#aaa",
+    color: "#928b9e",
   },
   summaryContainer: {
-    marginBottom: 10,
+    marginBottom: 3,
   },
   balanceCard: {
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#b3d0ec",
     padding: 8,
+    paddingBottom: 15,
     borderRadius: 12,
     alignItems: "center",
     marginBottom: 10,
+    borderWidth: 1.5,
+    borderColor: "rgba(178, 175, 175, 0.4)",
   },
   balanceTitle: {
     fontSize: 14,
-    color: "#666",
+    color: "#515151",
   },
   balanceValue: {
     fontSize: 28,
@@ -321,28 +332,33 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     marginHorizontal: 5,
+    borderWidth: 1,
+    borderColor: "rgba(122, 110, 110, 0.4)",
   },
   cardTitle: {
     fontSize: 14,
-    color: "#555",
+    color: "#515151",
   },
   cardValue: {
     fontSize: 18,
     fontWeight: "bold",
-    marginTop: 5,
+    marginTop: 3,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    marginBottom: 10,
+    marginBottom: 5,
   },
   transactionCard: {
     flexDirection: "row",
     justifyContent: "space-between",
     padding: 15,
-    marginBottom: 10,
+    marginBottom: 8,
     borderRadius: 10,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgb(182, 182, 182)",
+    backgroundColor: "#ffffff71",
   },
   title: {
     fontSize: 16,

@@ -11,7 +11,6 @@ import {
 import { useLocalSearchParams, router } from "expo-router";
 import axios from "axios";
 import API_URL from "../../api/config";
-import { deleteCategory } from "../../api/categoryApi";
 import { Ionicons } from "@expo/vector-icons";
 
 // 🔥 SAME ICON LIST AS ADD PAGE
@@ -44,6 +43,7 @@ export default function UpdateCategory() {
   const [categoryName, setCategoryName] = useState(name);
   const [selectedIcon, setSelectedIcon] = useState(icon);
 
+  /* ---------------- UPDATE ONLY ---------------- */
   const updateCategory = async () => {
     try {
       await axios.put(`${API_URL}/categories/${id}`, {
@@ -58,20 +58,6 @@ export default function UpdateCategory() {
       console.log(err);
       Alert.alert("Error", "Failed to update category");
     }
-  };
-
-  const handleDelete = async () => {
-    Alert.alert("Delete", "Are you sure?", [
-      { text: "Cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          await deleteCategory(id);
-          router.back();
-        },
-      },
-    ]);
   };
 
   return (
@@ -115,19 +101,15 @@ export default function UpdateCategory() {
         }}
       />
 
-      {/* SAVE */}
+      {/* SAVE ONLY BUTTON */}
       <TouchableOpacity style={styles.saveBtn} onPress={updateCategory}>
         <Text style={styles.btnText}>Save Changes</Text>
-      </TouchableOpacity>
-
-      {/* DELETE */}
-      <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
-        <Text style={styles.btnText}>Delete Category</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
+/* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -180,13 +162,6 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     marginTop: 15,
-  },
-
-  deleteBtn: {
-    backgroundColor: "#FF3B30",
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 10,
   },
 
   btnText: {
