@@ -10,6 +10,7 @@ export default function BackgroundWrapper({
   children,
   overlayOpacity = 0.05, // allow customization
   padding = true, // allow turning padding on/off
+  fullScreen = false,
 }) {
   return (
     <ImageBackground

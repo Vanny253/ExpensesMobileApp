@@ -1,27 +1,28 @@
-import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  ActivityIndicator,
-} from "react-native";
-import { useLocalSearchParams } from "expo-router";
-import { useUser } from "../context/UserContext";
-import { getExpenses, getIncome } from "../api/expenseApi";
-import { getCategories } from "../api/categoryApi";
-import { DEFAULT_EXPENSE_CATEGORIES } from "../components/defaultIcon";
 import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import {
+    ActivityIndicator,
+    FlatList,
+    StyleSheet,
+    Text,
+    View,
+} from "react-native";
+import { getCategories } from "../api/categoryApi";
+import { getExpenses, getIncome } from "../api/expenseApi";
+import BackgroundWrapper from "../components/backgroundWrapper";
+import { DEFAULT_EXPENSE_CATEGORIES } from "../components/defaultIcon";
+import { useUser } from "../context/UserContext";
 
 export default function ChartProgressBar() {
   const { user } = useUser();
+  const router = useRouter();
   const { category, name, month } = useLocalSearchParams();
 
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState([]);
   const [expenseCategories, setExpenseCategories] = useState([]);
 
-  /* ---------------- CATEGORY RESOLVER ---------------- */
   const resolveCategory = (value) => {
     if (!value) return null;
 
@@ -31,15 +32,13 @@ export default function ChartProgressBar() {
 
     if (!found) {
       found = list.find(
-        (c) =>
-          c.name?.toLowerCase() === String(value).toLowerCase()
+        (c) => c.name?.toLowerCase() === String(value).toLowerCase()
       );
     }
 
     return found;
   };
 
-  /* ---------------- FETCH DATA ---------------- */
   useEffect(() => {
     if (!user) return;
 
@@ -66,21 +65,18 @@ export default function ChartProgressBar() {
         const filtered = all.filter((item) => {
           const d = new Date(item.date);
 
-          const matchMonth =
+          return (
             d.getMonth() === targetMonth &&
-            d.getFullYear() === now.getFullYear();
-
-          const matchCategory =
-            String(item.category) === String(category);
-
-          return matchMonth && matchCategory;
+            d.getFullYear() === now.getFullYear() &&
+            String(item.category) === String(category)
+          );
         });
 
         filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
 
         setTransactions(filtered);
       } catch (err) {
-        console.error("Failed to load category details", err);
+        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -89,7 +85,6 @@ export default function ChartProgressBar() {
     fetchData();
   }, [user, category, month]);
 
-  /* ---------------- LOADING ---------------- */
   if (loading) {
     return (
       <View style={styles.center}>
@@ -98,76 +93,92 @@ export default function ChartProgressBar() {
     );
   }
 
-  /* ---------------- UI ---------------- */
   return (
     <View style={styles.container}>
 
-      {/* HEADER */}
-      <Text style={styles.title}>
-        {name || "Category"}
-      </Text>
+      {/* HEADER - Outside BackgroundWrapper */}
+      <View style={styles.headerWrapper}>
+        <View style={styles.header}>
+          <Ionicons
+            name="arrow-back"
+            size={24}
+            color="#000000"
+            onPress={() => router.replace("/drawer/tabs/charts")}
+          />
 
-      <Text style={styles.subtitle}>
-        {transactions.length} transactions
-      </Text>
+          <Text style={styles.headerTitle}>
+            Progress Bar Detail
+          </Text>
 
-      {/* LIST */}
-      <FlatList
-        data={transactions}
-        keyExtractor={(item) => `${item.type}-${item.id}`}
-        renderItem={({ item }) => {
-          const resolved = resolveCategory(item.category);
+          <View style={{ width: 24 }} />
+        </View>
+      </View>
 
-          return (
-            <View style={styles.card}>
+      {/* CONTENT - Inside BackgroundWrapper */}
+      <BackgroundWrapper>
+        <View style={styles.contentPadding}>
 
-              {/* LEFT SIDE */}
-              <View style={styles.left}>
-                <Ionicons
-                  name={resolved?.icon || "help-circle"}
-                  size={20}
-                  color="#555"
-                />
+          <Text style={styles.title}>
+            {name || "Category"}
+          </Text>
 
-                <Text style={styles.itemTitle}>
-                  {resolved?.name || item.category}
-                </Text>
-              </View>
+          <Text style={styles.subtitle}>
+            {transactions.length} transactions
+          </Text>
 
-              {/* RIGHT SIDE */}
-              <View style={styles.right}>
-                <Text
-                  style={[
-                    styles.amount,
-                    {
-                      color:
-                        item.type === "income"
-                          ? "#1aa34a"
-                          : "#e03131",
-                    },
-                  ]}
-                >
-                  RM {item.amount}
-                </Text>
+          <FlatList
+            data={transactions}
+            keyExtractor={(item) => `${item.type}-${item.id}`}
+            renderItem={({ item }) => {
+              const resolved = resolveCategory(item.category);
 
-                <Text style={styles.date}>
-                  {item.date}
-                </Text>
-              </View>
+              return (
+                <View style={styles.card}>
 
-            </View>
-          );
-        }}
-      />
+                  <View style={styles.left}>
+                    <Ionicons
+                      name={resolved?.icon || "help-circle"}
+                      size={20}
+                      color="#555"
+                    />
+                    <Text style={styles.itemTitle}>
+                      {resolved?.name || item.category}
+                    </Text>
+                  </View>
+
+                  <View style={styles.right}>
+                    <Text
+                      style={[
+                        styles.amount,
+                        {
+                          color:
+                            item.type === "income"
+                              ? "#1aa34a"
+                              : "#e03131",
+                        },
+                      ]}
+                    >
+                      RM {item.amount}
+                    </Text>
+
+                    <Text style={styles.date}>{item.date}</Text>
+                  </View>
+
+                </View>
+              );
+            }}
+          />
+
+        </View>
+      </BackgroundWrapper>
+
     </View>
   );
 }
 
-/* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
   },
 
   center: {
@@ -176,9 +187,41 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
+  /* HEADER - Full width blue, outside BackgroundWrapper */
+  headerWrapper: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 9999,
+  },
+
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#a3d2fe",
+    paddingTop: 50,
+    paddingBottom: 15,
+    paddingHorizontal: 20,
+    justifyContent: "space-between",
+  },
+
+  headerTitle: {
+    color: "#000000",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+
+  /* CONTENT - Padding inside BackgroundWrapper */
+  contentPadding: {
+    flex: 1,
+    paddingTop: 90,      // Push below header
+  },
+
   title: {
     fontSize: 22,
     fontWeight: "bold",
+    marginTop: 10,
   },
 
   subtitle: {
@@ -192,15 +235,14 @@ const styles = StyleSheet.create({
     padding: 15,
     marginBottom: 10,
     borderRadius: 10,
-    backgroundColor: "#fff",
+    backgroundColor: "#ffffff71",
     borderWidth: 1,
-    borderColor: "#eee",
+    borderColor: "rgb(182, 182, 182)",
   },
 
   left: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
   },
 
   right: {

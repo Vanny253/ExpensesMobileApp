@@ -1,20 +1,20 @@
-import React, { useEffect, useState, useMemo } from "react";
+import { useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
   Dimensions,
   ScrollView,
-  ImageBackground,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from "react-native";
-import { useUser } from "../../../context/UserContext";
-import { getExpenses } from "../../../api/expenseApi";
-import { getCategories } from "../../../api/categoryApi";
 import { PieChart } from "react-native-chart-kit";
-import { Ionicons } from "@expo/vector-icons";
+import { getCategories } from "../../../api/categoryApi";
+import { getExpenses } from "../../../api/expenseApi";
+import BackgroundWrapper from "../../../components/backgroundWrapper";
 import { DEFAULT_EXPENSE_CATEGORIES } from "../../../components/defaultIcon";
-import { useRouter } from "expo-router";
+import { useUser } from "../../../context/UserContext";
+
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -140,11 +140,8 @@ export default function ChartScreen() {
   );
 
   return (
-    <ImageBackground
-      source={require("../../../assets/background1.png")}
-      style={styles.background}
-      resizeMode="cover"
-    >
+    <BackgroundWrapper>
+
       <View style={styles.overlay}>
         <View style={styles.container}>
 
@@ -263,7 +260,8 @@ export default function ChartScreen() {
 
         </View>
       </View>
-    </ImageBackground>
+    </BackgroundWrapper>
+
   );
 }
 
@@ -280,24 +278,79 @@ const styles = StyleSheet.create({
     paddingHorizontal: 25,
   },
 
-  topBar: { flexDirection: "row", justifyContent: "space-around", marginBottom: 10 },
-  topButton: { paddingVertical: 6, paddingHorizontal: 15, borderRadius: 20, borderWidth: 1, borderColor: "#007AFF" },
-  activeTopButton: { backgroundColor: "#007AFF" },
-  topButtonText: { color: "#007AFF", fontWeight: "bold" },
-  activeTopText: { color: "#fff" },
+  topBar: { 
+    flexDirection: "row", 
+    justifyContent: "space-around", 
+    marginBottom: 10 },
 
-  subButton: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, borderWidth: 1, borderColor: "#888", marginRight: 8 },
-  activeSubButton: { backgroundColor: "#007AFF" },
-  subButtonText: { color: "#555", fontSize: 13 },
-  activeSubText: { color: "#fff" },
+  topButton: { 
+    paddingVertical: 6, 
+    paddingHorizontal: 15, 
+    borderRadius: 20, 
+    borderWidth: 1, 
+    borderColor: "#007AFF" },
 
-  chartWrapper: { alignItems: "center", marginTop: 20 },
-  progressContainer: { marginTop: 20 },
+  activeTopButton: { 
+    backgroundColor: "#007AFF" },
 
-  progressItem: { marginBottom: 12 },
-  progressHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
-  progressLabel: { fontSize: 14, fontWeight: "600" },
-  progressValue: { fontSize: 13, color: "#555" },
+  topButtonText: { 
+    color: "#007AFF", 
+    fontWeight: "bold" },
+
+  activeTopText: { 
+    color: "#fff" }
+    ,
+
+  subButton: { 
+    paddingHorizontal: 10, 
+    paddingVertical: 6, 
+    borderRadius: 14, 
+    borderWidth: 1, 
+    borderColor: "#007AFF", 
+    marginRight: 8 
+  },
+
+  activeSubButton: { 
+    backgroundColor: "#007AFF" 
+  },
+
+  subButtonText: { 
+    color: "#007AFF", 
+    fontSize: 13 
+  },
+
+  activeSubText: { 
+    color: "#fff" 
+  },
+
+  chartWrapper: { 
+    alignItems: "center", 
+    marginTop: 20 
+  },
+
+  progressContainer: { 
+    marginTop: 20 
+  },
+
+  progressItem: { 
+    marginBottom: 12 
+  },
+
+  progressHeader: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    marginBottom: 4 
+  },
+
+  progressLabel: { 
+    fontSize: 14, 
+    fontWeight: "600" 
+  },
+
+  progressValue: { 
+    fontSize: 13, 
+    color: "#555" 
+  },
 
   progressBarBackground: {
     height: 8,

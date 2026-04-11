@@ -1,24 +1,24 @@
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  FlatList,
   ActivityIndicator,
-  StyleSheet,
-  TouchableOpacity,
+  FlatList,
   ImageBackground,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { getExpenses, getIncome } from "../../../api/expenseApi";
-import { getCategories } from "../../../api/categoryApi";
-import { useUser } from "../../../context/UserContext";
 import { PanGestureHandler } from "react-native-gesture-handler";
-import { Ionicons } from "@expo/vector-icons";
+import { getCategories } from "../../../api/categoryApi";
+import { getExpenses, getIncome } from "../../../api/expenseApi";
 import BackgroundWrapper from "../../../components/backgroundWrapper";
 import {
   DEFAULT_EXPENSE_CATEGORIES,
   DEFAULT_INCOME_CATEGORIES,
 } from "../../../components/defaultIcon";
+import { useUser } from "../../../context/UserContext";
 
 export default function MainScreen() {
   const router = useRouter();
@@ -204,6 +204,13 @@ export default function MainScreen() {
         </ImageBackground>
       </View>
 
+      {/* GUEST */}
+      {!user && (
+        <Text style={styles.guestText}>
+          Guest Mode: Please login to add and track transactions.
+        </Text>
+      )}
+
       {/* TRANSACTIONS */}
       {transactions.length > 0 && (
         <>
@@ -298,15 +305,19 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   balanceCard: {
+    backgroundColor: "#b3d0ec",
     padding: 8,
     paddingBottom: 15,
     borderRadius: 12,
     alignItems: "center",
     marginBottom: 10,
+    borderWidth: 1.5,
+    borderColor: "rgba(178, 175, 175, 0.4)",
   },
   balanceTitle: {
     fontSize: 14,
     color: "#515151",
+
   },
   balanceValue: {
     fontSize: 28,
@@ -322,10 +333,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     marginHorizontal: 5,
+    borderWidth: 1,
+    borderColor: "rgb(182, 182, 182)",
   },
   cardTitle: {
     fontSize: 14,
-    color: "#515151",
   },
   cardValue: {
     fontSize: 18,
@@ -345,6 +357,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     borderWidth: 1,
+    borderColor: "rgb(182, 182, 182)",
     backgroundColor: "#ffffff71",
   },
   title: {

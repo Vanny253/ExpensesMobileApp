@@ -21,13 +21,13 @@ import {
   DEFAULT_EXPENSE_CATEGORIES,
   DEFAULT_INCOME_CATEGORIES,
 } from "../../../components/defaultIcon";
+import BackgroundWrapper from "../../../components/backgroundWrapper";
 
 const STORAGE_KEY = "removed_categories";
 
 /* ---------------- DROPDOWN COMPONENT ---------------- */
 const CategoryDropdown = ({ data, value, onChange, placeholder }) => {
   const [open, setOpen] = useState(false);
-
   const selected = data.find((i) => i.id === value);
 
   return (
@@ -41,7 +41,7 @@ const CategoryDropdown = ({ data, value, onChange, placeholder }) => {
             style={{ marginRight: 8 }}
           />
           <Text style={{ fontSize: 16 }}>
-            {selected?.name  || placeholder}
+            {selected?.name || placeholder}
           </Text>
         </View>
 
@@ -89,13 +89,14 @@ const CategoryDropdown = ({ data, value, onChange, placeholder }) => {
   );
 };
 
+/* ---------------- FORM ---------------- */
 const TransactionForm = ({ type }) => {
   const { user } = useUser();
 
   const defaultCats =
-  type === "expense"
-    ? DEFAULT_EXPENSE_CATEGORIES
-    : DEFAULT_INCOME_CATEGORIES;
+    type === "expense"
+      ? DEFAULT_EXPENSE_CATEGORIES
+      : DEFAULT_INCOME_CATEGORIES;
 
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
@@ -109,73 +110,48 @@ const TransactionForm = ({ type }) => {
   const getKey = (cat) =>
     cat.id ? `id:${cat.id}` : `name:${cat.name}`;
 
-  /* ---------------- LOAD REMOVED CATEGORIES ---------------- */
   useEffect(() => {
     const loadRemoved = async () => {
-      try {
-        const saved = await AsyncStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          setRemovedKeys(JSON.parse(saved));
-        }
-      } catch (err) {
-        console.log("Failed to load removed categories", err);
-      }
+      const saved = await AsyncStorage.getItem(STORAGE_KEY);
+      if (saved) setRemovedKeys(JSON.parse(saved));
     };
-
     loadRemoved();
   }, []);
 
-  /* ---------------- FETCH CATEGORIES ---------------- */
   useEffect(() => {
     const fetchCategories = async () => {
       if (!user) return;
 
-      try {
-        const customCategories = await getCategories(user.user_id, type);
+      const customCategories = await getCategories(user.user_id, type);
+      const saved = await AsyncStorage.getItem(STORAGE_KEY);
+      const removedKeys = saved ? JSON.parse(saved) : [];
 
-        const saved = await AsyncStorage.getItem(STORAGE_KEY);
-        const removedKeys = saved ? JSON.parse(saved) : [];
+      const allCategories = [
+        ...defaultCats,
+        ...customCategories.map((c) => ({
+          id: c.id,
+          name: c.name,
+          icon: c.icon || "help-circle",
+        })),
+      ];
 
+      const getKey = (cat) => cat.id || cat.name;
 
-        const allCategories = [
-          ...defaultCats,
-          ...customCategories.map((c) => ({
-            id: c.id,
-            name: c.name,
-            icon: c.icon || "help-circle",
-          })),
-        ];
+      const filtered = allCategories.filter(
+        (cat) => !removedKeys.includes(getKey(cat))
+      );
 
-        // 🔥 SAME LOGIC AS add_expense.js
-        const getKey = (cat) => cat.id || cat.name;
-
-        const filteredCategories = allCategories.filter((cat) => {
-          const key = getKey(cat);
-          return !removedKeys.includes(key);
-        });
-
-        setCategories(filteredCategories);
-      } catch (err) {
-        console.log("Failed to load categories:", err);
-      }
+      setCategories(filtered);
     };
 
     fetchCategories();
   }, [user, type]);
 
-  /* ---------------- FILTER CATEGORIES ---------------- */
-  const filteredCategories = categories.filter((cat) => {
-    const key = getKey(cat);
-    return !removedKeys.includes(key);
-  });
+  const filteredCategories = categories.filter(
+    (cat) => !removedKeys.includes(getKey(cat))
+  );
 
-  /* ---------------- SUBMIT ---------------- */
   const handleSubmit = async () => {
-    if (!user) {
-      Alert.alert("Login Required", "Please login to add transactions.");
-      return;
-    }
-
     if (!title || !amount || !category) {
       Alert.alert("Error", "Please fill in all fields.");
       return;
@@ -189,45 +165,25 @@ const TransactionForm = ({ type }) => {
       date: date.toISOString().split("T")[0],
     };
 
-    try {
-      if (type === "expense") {
-        await addExpense(data);
-      } else {
-        await addIncome(data);
-      }
+    if (type === "expense") await addExpense(data);
+    else await addIncome(data);
 
-      Alert.alert("Success", `${type} saved successfully`);
+    Alert.alert("Success", `${type} saved successfully`);
 
-      setTitle("");
-      setAmount("");
-      setCategory("");
-      setDate(new Date());
-    } catch (error) {
-      console.log(error);
-      Alert.alert("Error", "Failed to save transaction.");
-    }
+    setTitle("");
+    setAmount("");
+    setCategory("");
+    setDate(new Date());
   };
 
-  const onDateChange = (_, selectedDate) => {
-    setShowDatePicker(false);
-    if (selectedDate) setDate(selectedDate);
-  };
-
-  /* ---------------- UI ---------------- */
   return (
     <View style={styles.formContainer}>
       <Text style={styles.label}>Title</Text>
-      <TextInput
-        style={styles.input}
-        placeholder={`Enter ${type} title`}
-        value={title}
-        onChangeText={setTitle}
-      />
+      <TextInput style={styles.input} value={title} onChangeText={setTitle} />
 
       <Text style={styles.label}>Amount</Text>
       <TextInput
         style={styles.input}
-        placeholder={`Enter ${type} amount`}
         value={amount}
         onChangeText={setAmount}
         keyboardType="numeric"
@@ -246,14 +202,18 @@ const TransactionForm = ({ type }) => {
         style={styles.dateButton}
         onPress={() => setShowDatePicker(true)}
       >
-        <Text style={styles.dateText}>{date.toDateString()}</Text>
+        <Text>{date.toDateString()}</Text>
       </TouchableOpacity>
 
       {showDatePicker && (
-        <DateTimePicker value={date} mode="date" onChange={onDateChange} />
+        <DateTimePicker value={date} mode="date" onChange={() => {}} />
       )}
 
-      <Button title={`Add ${type}`} onPress={handleSubmit} />
+      <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+        <Text style={styles.submitButtonText}>
+          Add {type.charAt(0).toUpperCase() + type.slice(1)}
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -263,25 +223,33 @@ const AddExpenseScreen = () => {
   const [activeTab, setActiveTab] = useState("expense");
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.tabsContainer}>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === "expense" && styles.activeTab]}
-          onPress={() => setActiveTab("expense")}
-        >
-          <Text style={styles.tabText}>Expense</Text>
-        </TouchableOpacity>
+    <BackgroundWrapper>
+      <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.tabsContainer}>
+          <TouchableOpacity
+            style={[
+              styles.tabButton,
+              activeTab === "expense" && styles.activeTab,
+            ]}
+            onPress={() => setActiveTab("expense")}
+          >
+            <Text style={styles.tabText}>Expense</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === "income" && styles.activeTab]}
-          onPress={() => setActiveTab("income")}
-        >
-          <Text style={styles.tabText}>Income</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={[
+              styles.tabButton,
+              activeTab === "income" && styles.activeTab,
+            ]}
+            onPress={() => setActiveTab("income")}
+          >
+            <Text style={styles.tabText}>Income</Text>
+          </TouchableOpacity>
+        </View>
 
-      <TransactionForm type={activeTab} />
-    </ScrollView>
+        <TransactionForm type={activeTab} />
+      </ScrollView>
+    </BackgroundWrapper>
   );
 };
 
@@ -289,7 +257,10 @@ export default AddExpenseScreen;
 
 /* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 20, backgroundColor: "#fff" },
+  container: {
+    flexGrow: 1,
+    padding: 20, // ❌ removed white background
+  },
 
   tabsContainer: {
     flexDirection: "row",
@@ -311,7 +282,12 @@ const styles = StyleSheet.create({
 
   tabText: { fontSize: 16, color: "#555" },
 
-  formContainer: { marginTop: 20 },
+  formContainer: {
+    marginTop: 20,
+    backgroundColor: "rgba(255,255,255,0.9)", // ✅ transparent white
+    padding: 15,
+    borderRadius: 10,
+  },
 
   label: { marginBottom: 5, fontWeight: "bold" },
 
@@ -326,7 +302,6 @@ const styles = StyleSheet.create({
   dropdown: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
     borderWidth: 1,
     borderColor: "#ccc",
     padding: 12,
@@ -365,5 +340,20 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
 
-  dateText: { fontSize: 16 },
+  submitButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#007AFF",
+    paddingVertical: 14,
+    borderRadius: 10,
+    marginTop: 10,
+    elevation: 4,
+  },
+
+  submitButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
 });
