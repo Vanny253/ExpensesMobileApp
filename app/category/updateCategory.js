@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,11 @@ import axios from "axios";
 import API_URL from "../../api/config";
 import { Ionicons } from "@expo/vector-icons";
 
-// 🔥 SAME ICON LIST AS ADD PAGE
+import {
+  DEFAULT_EXPENSE_CATEGORIES,
+  DEFAULT_INCOME_CATEGORIES,
+} from "../../components/defaultIcon";
+
 const ICON_OPTIONS = [
   "fast-food",
   "car",
@@ -40,10 +44,42 @@ const ICON_OPTIONS = [
 export default function UpdateCategory() {
   const { id, name, icon, type } = useLocalSearchParams();
 
+  const isDefaultCategory = useMemo(() => {
+    const list =
+      type === "expense"
+        ? DEFAULT_EXPENSE_CATEGORIES
+        : DEFAULT_INCOME_CATEGORIES;
+
+    return list.some((c) => c.id === id);
+  }, [id, type]);
+
   const [categoryName, setCategoryName] = useState(name);
   const [selectedIcon, setSelectedIcon] = useState(icon);
 
-  /* ---------------- UPDATE ONLY ---------------- */
+  /* ---------------- BLOCK DEFAULT CATEGORY ---------------- */
+  if (isDefaultCategory) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Update Category</Text>
+
+        <View style={styles.blockBox}>
+          <Ionicons name="lock-closed" size={40} color="#FF3B30" />
+          <Text style={styles.blockText}>
+            Default categories cannot be edited.
+          </Text>
+
+          <TouchableOpacity
+            style={styles.saveBtn}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.btnText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  /* ---------------- UPDATE ONLY CUSTOM CATEGORY ---------------- */
   const updateCategory = async () => {
     try {
       await axios.put(`${API_URL}/categories/${id}`, {
@@ -85,10 +121,7 @@ export default function UpdateCategory() {
 
           return (
             <TouchableOpacity
-              style={[
-                styles.iconBox,
-                isSelected && styles.iconBoxSelected,
-              ]}
+              style={[styles.iconBox, isSelected && styles.iconBoxSelected]}
               onPress={() => setSelectedIcon(item)}
             >
               <Ionicons
@@ -101,7 +134,7 @@ export default function UpdateCategory() {
         }}
       />
 
-      {/* SAVE ONLY BUTTON */}
+      {/* SAVE */}
       <TouchableOpacity style={styles.saveBtn} onPress={updateCategory}>
         <Text style={styles.btnText}>Save Changes</Text>
       </TouchableOpacity>
@@ -168,5 +201,20 @@ const styles = StyleSheet.create({
     color: "white",
     textAlign: "center",
     fontWeight: "bold",
+  },
+
+  blockBox: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 50,
+  },
+
+  blockText: {
+    marginTop: 10,
+    fontSize: 16,
+    textAlign: "center",
+    color: "#666",
+    marginBottom: 20,
   },
 });

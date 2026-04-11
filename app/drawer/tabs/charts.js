@@ -1,10 +1,19 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
+  ScrollView,
+} from "react-native";
 import { useUser } from "../../../context/UserContext";
 import { getExpenses } from "../../../api/expenseApi";
 import { PieChart } from "react-native-chart-kit";
-import BackgroundWrapper from "../../../components/backgroundWrapper";
-
+import { Ionicons } from "@expo/vector-icons";
+import {
+  DEFAULT_EXPENSE_CATEGORIES,
+} from "../../../components/defaultIcon";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -15,50 +24,44 @@ const colors = [
 
 export default function ChartScreen() {
   const { user } = useUser();
-  const [timeframe, setTimeframe] = useState("month"); // week, month, year
+
+  const [timeframe, setTimeframe] = useState("month");
   const [subPeriod, setSubPeriod] = useState(0);
   const [categoryData, setCategoryData] = useState([]);
   const [subPeriodsList, setSubPeriodsList] = useState([]);
 
-  // Helper functions
-  const getWeekRange = (weeksAgo = 0) => {
-    const now = new Date();
-    const day = now.getDay(); // Sunday = 0
-    const start = new Date(now);
-    start.setDate(now.getDate() - day - 7 * weeksAgo);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-
-    const options = { month: "short", day: "numeric" };
-    return `${start.toLocaleDateString("en-US", options)} - ${end.toLocaleDateString("en-US", options)}`;
+  /* ---------------- ICON HELPER ---------------- */
+  const getCategoryIcon = (name) => {
+    const found = DEFAULT_EXPENSE_CATEGORIES.find(
+      (c) => c.name === name
+    );
+    return found?.icon || "help-circle";
   };
 
+  /* ---------------- TIME HELPERS ---------------- */
   const getMonthLabel = (monthsAgo = 0) => {
     const now = new Date();
     const month = new Date(now.getFullYear(), now.getMonth() - monthsAgo);
-    return month.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+    return month.toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric",
+    });
   };
 
-  const getYearLabel = (yearsAgo = 0) => {
-    const now = new Date();
-    return `${now.getFullYear() - yearsAgo}`;
-  };
-
-  // Generate sub-bar labels
   const generateSubPeriods = () => {
     const labels = [];
     for (let i = 0; i < 4; i++) {
-      if (timeframe === "week") labels.push(getWeekRange(i));
-      else if (timeframe === "month") labels.push(getMonthLabel(i));
-      else if (timeframe === "year") labels.push(getYearLabel(i));
+      labels.push(getMonthLabel(i));
     }
     setSubPeriodsList(labels);
     setSubPeriod(0);
   };
 
-  useEffect(() => { generateSubPeriods(); }, [timeframe]);
+  useEffect(() => {
+    generateSubPeriods();
+  }, [timeframe]);
 
-  // Fetch expenses and filter by timeframe/subPeriod
+  /* ---------------- FETCH DATA ---------------- */
   useEffect(() => {
     if (!user) return;
 
@@ -69,26 +72,20 @@ export default function ChartScreen() {
 
         const filtered = expenses.filter((item) => {
           const date = new Date(item.date);
+          const month = now.getMonth() - subPeriod;
 
-          if (timeframe === "week") {
-            const start = new Date();
-            start.setDate(now.getDate() - now.getDay() - 7 * subPeriod);
-            const end = new Date(start);
-            end.setDate(start.getDate() + 6);
-            return date >= start && date <= end;
-          } else if (timeframe === "month") {
-            const month = now.getMonth() - subPeriod;
-            const year = now.getFullYear();
-            return date.getMonth() === month && date.getFullYear() === year;
-          } else if (timeframe === "year") {
-            const year = now.getFullYear() - subPeriod;
-            return date.getFullYear() === year;
-          }
+          return (
+            date.getMonth() === month &&
+            date.getFullYear() === now.getFullYear()
+          );
         });
 
         const categoryMap = {};
+
         filtered.forEach((item) => {
-          if (!categoryMap[item.category]) categoryMap[item.category] = 0;
+          if (!categoryMap[item.category]) {
+            categoryMap[item.category] = 0;
+          }
           categoryMap[item.category] += item.amount;
         });
 
@@ -96,8 +93,6 @@ export default function ChartScreen() {
           name: cat,
           population: categoryMap[cat],
           color: colors[index % colors.length],
-          legendFontColor: "#333",
-          legendFontSize: 14,
         }));
 
         setCategoryData(chartData);
@@ -107,83 +102,148 @@ export default function ChartScreen() {
     };
 
     fetchData();
-  }, [user, timeframe, subPeriod]);
+  }, [user, subPeriod]);
+
+  const totalAmount = categoryData.reduce(
+    (sum, item) => sum + item.population,
+    0
+  );
 
   return (
-    <BackgroundWrapper>
-      <View style={styles.container}>
-        {/* Top Bar */}
-        <View style={styles.topBar}>
-          {["week", "month", "year"].map((tf) => (
-            <TouchableOpacity
-              key={tf}
-              style={[styles.topButton, timeframe === tf && styles.activeTopButton]}
-              onPress={() => setTimeframe(tf)}
-            >
-              <Text style={[styles.topButtonText, timeframe === tf && styles.activeTopText]}>
-                {tf.charAt(0).toUpperCase() + tf.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+    <View style={styles.container}>
 
-        {/* Sub-bar */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ flexDirection: "row", paddingLeft: 5 }}
-        >
-          {subPeriodsList.map((label, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[styles.subButton, subPeriod === index && styles.activeSubButton]}
-              onPress={() => setSubPeriod(index)}
+      {/* TOP BAR */}
+      <View style={styles.topBar}>
+        {["week", "month", "year"].map((tf) => (
+          <TouchableOpacity
+            key={tf}
+            style={[
+              styles.topButton,
+              timeframe === tf && styles.activeTopButton,
+            ]}
+            onPress={() => setTimeframe(tf)}
+          >
+            <Text
+              style={[
+                styles.topButtonText,
+                timeframe === tf && styles.activeTopText,
+              ]}
             >
-              <Text style={[styles.subButtonText, subPeriod === index && styles.activeSubText]}>
-                {label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* Pie Chart */}
-        <View style={styles.chartWrapper}>
-          <PieChart
-            data={categoryData.map((c) => ({
-              name: c.name,
-              population: c.population,
-              color: c.color,
-              legendFontColor: c.legendFontColor,
-              legendFontSize: 14,
-            }))}
-            width={screenWidth - 40}
-            height={220}
-            chartConfig={{
-              color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-            }}
-            accessor="population"
-            backgroundColor="transparent"
-            paddingLeft="15"
-            absolute
-          />
-        </View>
+              {tf.charAt(0).toUpperCase() + tf.slice(1)}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
-    </BackgroundWrapper>
+
+      {/* SUB BAR */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        {subPeriodsList.map((label, index) => (
+          <TouchableOpacity
+            key={index}
+            style={[
+              styles.subButton,
+              subPeriod === index && styles.activeSubButton,
+            ]}
+            onPress={() => setSubPeriod(index)}
+          >
+            <Text
+              style={[
+                styles.subButtonText,
+                subPeriod === index && styles.activeSubText,
+              ]}
+            >
+              {label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* PIE CHART */}
+      <View style={styles.chartWrapper}>
+        <PieChart
+          data={categoryData.map((c) => ({
+            name: c.name,
+            population: c.population,
+            color: c.color,
+            legendFontColor: "#333",
+            legendFontSize: 14,
+          }))}
+          width={screenWidth - 40}
+          height={220}
+          chartConfig={{
+            color: () => "#000",
+          }}
+          accessor="population"
+          backgroundColor="transparent"
+          paddingLeft="15"
+          absolute
+        />
+      </View>
+
+      {/* PROGRESS BAR LIST */}
+      <View style={styles.progressContainer}>
+        {categoryData.map((item, index) => {
+          const percentage =
+            totalAmount > 0
+              ? (item.population / totalAmount) * 100
+              : 0;
+
+          return (
+            <View key={index} style={styles.progressItem}>
+
+              {/* HEADER */}
+              <View style={styles.progressHeader}>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <Ionicons
+                    name={getCategoryIcon(item.name)}
+                    size={18}
+                    color="#007AFF"
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text style={styles.progressLabel}>
+                    {item.name}
+                  </Text>
+                </View>
+
+                <Text style={styles.progressValue}>
+                  RM {item.population.toFixed(2)} ({percentage.toFixed(1)}%)
+                </Text>
+              </View>
+
+              {/* BAR */}
+              <View style={styles.progressBarBackground}>
+                <View
+                  style={[
+                    styles.progressBarFill,
+                    {
+                      width: `${percentage}%`,
+                      backgroundColor: item.color,
+                    },
+                  ]}
+                />
+              </View>
+
+            </View>
+          );
+        })}
+      </View>
+    </View>
   );
 }
 
+/* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
-  container: { 
+  container: {
     paddingTop: 20,
     paddingHorizontal: 25,
-    alignItems: "stretch",
   },
-  topBar: { 
-    flexDirection: "row", 
-    justifyContent: "space-around", 
+
+  topBar: {
+    flexDirection: "row",
+    justifyContent: "space-around",
     marginBottom: 10,
-    width: "100%",
   },
+
   topButton: {
     paddingVertical: 6,
     paddingHorizontal: 15,
@@ -191,34 +251,80 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#007AFF",
   },
-  activeTopButton: { backgroundColor: "#007AFF" },
-  topButtonText: { color: "#007AFF", fontWeight: "bold" },
-  activeTopText: { color: "#fff" },
+
+  activeTopButton: {
+    backgroundColor: "#007AFF",
+  },
+
+  topButtonText: {
+    color: "#007AFF",
+    fontWeight: "bold",
+  },
+
+  activeTopText: {
+    color: "#fff",
+  },
 
   subButton: {
-    height: 28,
     paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#007AFF",
+    borderColor: "#888",
     marginRight: 8,
-    backgroundColor: "transparent",
-    alignItems: "center",
-    justifyContent: "center",
   },
+
   activeSubButton: {
     backgroundColor: "#007AFF",
-    borderColor: "#007AFF",
   },
+
   subButtonText: {
-    color: "#007AFF",
+    color: "#555",
     fontSize: 13,
-    fontWeight: "500",
-    textAlign: "center",
   },
-  activeSubText: { color: "#fff" },
 
-  noDataText: { textAlign: "center", fontSize: 16, color: "#666", marginTop: 20 },
+  activeSubText: {
+    color: "#fff",
+  },
 
-  
+  chartWrapper: {
+    alignItems: "center",
+    marginTop: 20,
+  },
+
+  progressContainer: {
+    marginTop: 20,
+  },
+
+  progressItem: {
+    marginBottom: 12,
+  },
+
+  progressHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+
+  progressLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+
+  progressValue: {
+    fontSize: 13,
+    color: "#555",
+  },
+
+  progressBarBackground: {
+    height: 8,
+    backgroundColor: "#e0e0e0",
+    borderRadius: 5,
+    overflow: "hidden",
+  },
+
+  progressBarFill: {
+    height: "100%",
+    borderRadius: 5,
+  },
 });

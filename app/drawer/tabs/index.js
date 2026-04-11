@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   StyleSheet,
   TouchableOpacity,
+  ImageBackground,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { getExpenses, getIncome } from "../../../api/expenseApi";
@@ -14,25 +15,10 @@ import { useUser } from "../../../context/UserContext";
 import { PanGestureHandler } from "react-native-gesture-handler";
 import { Ionicons } from "@expo/vector-icons";
 import BackgroundWrapper from "../../../components/backgroundWrapper";
-import { ImageBackground } from "react-native";
-
-
-const DEFAULT_EXPENSE_CATEGORIES = [
-  { name: "Food", icon: "fast-food" },
-  { name: "Transport", icon: "car" },
-  { name: "Billing", icon: "receipt" },
-  { name: "Shopping", icon: "cart" },
-  { name: "Health", icon: "medkit" },
-  { name: "Entertainment", icon: "game-controller" },
-];
-
-const DEFAULT_INCOME_CATEGORIES = [
-  { name: "Salary", icon: "cash" },
-  { name: "Gift", icon: "gift" },
-  { name: "Investment", icon: "trending-up" },
-  { name: "Bonus", icon: "wallet" },
-  { name: "Freelance", icon: "laptop" },
-];
+import {
+  DEFAULT_EXPENSE_CATEGORIES,
+  DEFAULT_INCOME_CATEGORIES,
+} from "../../../components/defaultIcon";
 
 export default function MainScreen() {
   const router = useRouter();
@@ -71,17 +57,42 @@ export default function MainScreen() {
     currentDate.getMonth() === new Date().getMonth() &&
     currentDate.getFullYear() === new Date().getFullYear();
 
-  const getCategoryIcon = (categoryName, type) => {
+  /* ---------------- CATEGORY RESOLVER (FIXED) ---------------- */
+  const resolveCategory = (categoryValue, type) => {
+    if (!categoryValue) return null;
+
     const list =
       type === "income"
         ? [...DEFAULT_INCOME_CATEGORIES, ...incomeCategories]
         : [...DEFAULT_EXPENSE_CATEGORIES, ...expenseCategories];
 
-    const found = list.find((c) => c.name === categoryName);
+    // ✅ FIX: ID match (string-safe)
+    let found = list.find(
+      (c) => String(c.id) === String(categoryValue)
+    );
 
-    return found?.icon || "help-circle";
+    // ✅ fallback for old data (name-based)
+    if (!found) {
+      found = list.find(
+        (c) =>
+          c.name?.toLowerCase() ===
+          String(categoryValue).toLowerCase()
+      );
+    }
+
+    return found;
   };
 
+
+  const getCategoryIcon = (categoryValue, type) => {
+    return resolveCategory(categoryValue, type)?.icon || "help-circle";
+  };
+
+  const getCategoryName = (categoryValue, type) => {
+    return resolveCategory(categoryValue, type)?.name || "Unknown";
+  };
+
+  /* ---------------- FETCH DATA ---------------- */
   useEffect(() => {
     if (!user) {
       setTransactions([]);
@@ -115,9 +126,7 @@ export default function MainScreen() {
           ...safeIncome.map((i) => ({ ...i, type: "income" })),
         ];
 
-        allTransactions.sort(
-          (a, b) => new Date(b.date) - new Date(a.date)
-        );
+        allTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
 
         const filtered = allTransactions.filter((item) => {
           const itemDate = new Date(item.date);
@@ -152,7 +161,6 @@ export default function MainScreen() {
 
   return (
     <BackgroundWrapper>
-      {/* HEADER */}
       <PanGestureHandler
         onEnded={(event) => {
           const { translationX } = event.nativeEvent;
@@ -165,9 +173,7 @@ export default function MainScreen() {
         }}
       >
         <View>
-          <Text style={styles.swipeHint}>
-            ← Swipe to change month →
-          </Text>
+          <Text style={styles.swipeHint}>← Swipe to change month →</Text>
           <Text style={styles.date}>{today}</Text>
         </View>
       </PanGestureHandler>
@@ -181,9 +187,7 @@ export default function MainScreen() {
         >
           <Text style={styles.balanceTitle}>Total Balance</Text>
 
-          <Text style={styles.balanceValue}>
-            RM {balance.toFixed(2)}
-          </Text>
+          <Text style={styles.balanceValue}>RM {balance.toFixed(2)}</Text>
 
           <View style={styles.rowContainer}>
             <View style={[styles.smallCard, { backgroundColor: "#ddffdd" }]}>
@@ -202,13 +206,6 @@ export default function MainScreen() {
           </View>
         </ImageBackground>
       </View>
-
-      {/* GUEST */}
-      {!user && (
-        <Text style={styles.guestText}>
-          Guest Mode: Please login to add and track transactions.
-        </Text>
-      )}
 
       {/* TRANSACTIONS */}
       {transactions.length > 0 && (
@@ -235,25 +232,31 @@ export default function MainScreen() {
                 }
               >
                 <View style={styles.transactionCard}>
-                
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <Ionicons
                       name={getCategoryIcon(item.category, item.type)}
                       size={22}
                       color="#555"
                     />
-                    <Text style={styles.title}>{item.title}</Text>
+                    <Text style={styles.title}>
+                      {getCategoryName(item.category, item.type)}
+                    </Text>
                   </View>
 
                   <View>
-                  <Text
-                    style={[
-                      styles.amount,
-                      { color: item.type === "income" ? "#1aa34a" : "#e03131" }
-                    ]}
-                  >
-                    RM {item.amount}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.amount,
+                        {
+                          color:
+                            item.type === "income"
+                              ? "#1aa34a"
+                              : "#e03131",
+                        },
+                      ]}
+                    >
+                      RM {item.amount}
+                    </Text>
                     <Text style={styles.dateText}>{item.date}</Text>
                   </View>
                 </View>
@@ -263,7 +266,6 @@ export default function MainScreen() {
         </>
       )}
 
-      {/* LOADING */}
       {loading && user && (
         <ActivityIndicator
           size="large"
@@ -272,7 +274,6 @@ export default function MainScreen() {
         />
       )}
 
-      {/* EMPTY */}
       {!loading && user && transactions.length === 0 && (
         <Text style={styles.guestText}>
           No transactions for this month.
@@ -284,10 +285,10 @@ export default function MainScreen() {
 
 /* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 15,
-    padding: 20,
+  swipeHint: {
+    textAlign: "center",
+    fontSize: 12,
+    color: "#928b9e",
   },
   date: {
     fontSize: 18,
@@ -296,23 +297,15 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontWeight: "bold",
   },
-  swipeHint: {
-    textAlign: "center",
-    fontSize: 12,
-    color: "#928b9e",
-  },
   summaryContainer: {
     marginBottom: 3,
   },
   balanceCard: {
-    backgroundColor: "#b3d0ec",
     padding: 8,
     paddingBottom: 15,
     borderRadius: 12,
     alignItems: "center",
     marginBottom: 10,
-    borderWidth: 1.5,
-    borderColor: "rgba(178, 175, 175, 0.4)",
   },
   balanceTitle: {
     fontSize: 14,
@@ -332,8 +325,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     marginHorizontal: 5,
-    borderWidth: 1,
-    borderColor: "rgba(122, 110, 110, 0.4)",
   },
   cardTitle: {
     fontSize: 14,
@@ -357,7 +348,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgb(182, 182, 182)",
     backgroundColor: "#ffffff71",
   },
   title: {

@@ -16,14 +16,21 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
+
 import {
   updateExpense,
   deleteExpense,
   updateIncome,
   deleteIncome,
 } from "../api/expenseApi";
+
 import { getCategories } from "../api/categoryApi";
 import { useUser } from "../context/UserContext";
+
+import {
+  DEFAULT_EXPENSE_CATEGORIES,
+  DEFAULT_INCOME_CATEGORIES,
+} from "../components/defaultIcon";
 
 const STORAGE_KEY = "removed_categories";
 
@@ -31,7 +38,9 @@ const STORAGE_KEY = "removed_categories";
 const CategoryDropdown = ({ data, value, onChange }) => {
   const [open, setOpen] = useState(false);
 
-  const selected = data.find((i) => i.name === value);
+  const selected = data.find(
+    (i) => String(i.id) === String(value)
+  );
 
   return (
     <>
@@ -44,7 +53,7 @@ const CategoryDropdown = ({ data, value, onChange }) => {
             style={{ marginRight: 8 }}
           />
           <Text style={{ fontSize: 16 }}>
-            {value || "Select Category"}
+            {selected?.name || "Select Category"}
           </Text>
         </View>
 
@@ -58,14 +67,12 @@ const CategoryDropdown = ({ data, value, onChange }) => {
 
             <FlatList
               data={data}
-              keyExtractor={(item) =>
-                item.id ? item.id.toString() : item.name
-              }
+              keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={styles.item}
                   onPress={() => {
-                    onChange(item.name);
+                    onChange(item.id); // ✅ STORE ID ONLY
                     setOpen(false);
                   }}
                 >
@@ -95,21 +102,20 @@ export default function TransactionDetailScreen() {
   const router = useRouter();
   const { user } = useUser();
 
-  const { id, type, title, amount, category, date } = useLocalSearchParams();
+  const { id, type, title, amount, category, date } =
+    useLocalSearchParams();
 
   const [editTitle, setEditTitle] = useState(title);
   const [editAmount, setEditAmount] = useState(String(amount));
-  const [editCategory, setEditCategory] = useState(category);
+
+  const [editCategory, setEditCategory] = useState(String(category));
+
   const [editDate, setEditDate] = useState(date);
 
   const [categories, setCategories] = useState([]);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  /* ---------------- SAME KEY LOGIC AS add_expense.js ---------------- */
-  const getKey = (cat) =>
-    cat.id ? `id:${cat.id}` : `name:${cat.name}`;
-
-  /* ---------------- LOAD CATEGORIES (WITH REMOVE FILTER) ---------------- */
+  /* ---------------- LOAD CATEGORIES ---------------- */
   useEffect(() => {
     const fetchCategories = async () => {
       if (!user) return;
@@ -122,38 +128,24 @@ export default function TransactionDetailScreen() {
 
         const defaultCats =
           type === "expense"
-            ? [
-                { name: "Food", icon: "fast-food" },
-                { name: "Transport", icon: "car" },
-                { name: "Shopping", icon: "cart" },
-                { name: "Billing", icon: "receipt" },
-                { name: "Health", icon: "medkit" },
-                { name: "Other", icon: "ellipsis-horizontal" },
-              ]
-            : [
-                { name: "Salary", icon: "cash" },
-                { name: "Bonus", icon: "wallet" },
-                { name: "Gift", icon: "gift" },
-                { name: "Investment", icon: "trending-up" },
-                { name: "Other", icon: "ellipsis-horizontal" },
-              ];
+            ? DEFAULT_EXPENSE_CATEGORIES
+            : DEFAULT_INCOME_CATEGORIES;
 
         const allCategories = [
           ...defaultCats,
           ...customCategories.map((c) => ({
-            id: c.id,
+            id: String(c.id),
             name: c.name,
             icon: c.icon || "help-circle",
           })),
         ];
 
-        /* ✅ IMPORTANT FIX */
-        const filteredCategories = allCategories.filter((cat) => {
-          const key = getKey(cat);
+        const filtered = allCategories.filter((cat) => {
+          const key = cat.id ? `id:${cat.id}` : `name:${cat.name}`;
           return !removedKeys.includes(key);
         });
 
-        setCategories(filteredCategories);
+        setCategories(filtered);
       } catch (err) {
         console.log("Failed to load categories:", err);
       }
@@ -172,7 +164,7 @@ export default function TransactionDetailScreen() {
     const updatedData = {
       title: editTitle,
       amount: parseFloat(editAmount),
-      category: editCategory,
+      category: String(editCategory),
       date: editDate,
     };
 

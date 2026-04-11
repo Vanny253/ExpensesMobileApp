@@ -1,5 +1,3 @@
-// app/drawer/tabs/category.js
-
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -14,25 +12,12 @@ import BottomTabs from "../../components/_BottomTabs";
 import { useUser } from "../../context/UserContext";
 import { getCategories } from "../../api/categoryApi";
 import { router, useFocusEffect } from "expo-router";
+import {
+  DEFAULT_EXPENSE_CATEGORIES,
+  DEFAULT_INCOME_CATEGORIES,
+} from "../../components/defaultIcon";
 
 const STORAGE_KEY = "removed_categories";
-
-const DEFAULT_EXPENSE_CATEGORIES = [
-  { name: "Food", icon: "fast-food" },
-  { name: "Transport", icon: "car" },
-  { name: "Billing", icon: "receipt" },
-  { name: "Shopping", icon: "cart" },
-  { name: "Health", icon: "medkit" },
-  { name: "Entertainment", icon: "game-controller" },
-];
-
-const DEFAULT_INCOME_CATEGORIES = [
-  { name: "Salary", icon: "cash" },
-  { name: "Gift", icon: "gift" },
-  { name: "Investment", icon: "trending-up" },
-  { name: "Bonus", icon: "wallet" },
-  { name: "Freelance", icon: "laptop" },
-];
 
 export default function CategoryScreen() {
   const { user } = useUser();
@@ -40,6 +25,13 @@ export default function CategoryScreen() {
   const [type, setType] = useState("expense");
   const [customCategories, setCustomCategories] = useState([]);
   const [removedKeys, setRemovedKeys] = useState([]);
+
+  /* ---------------- FIX: PUT INSIDE COMPONENT ---------------- */
+  const isDefaultCategory = (cat) => {
+    return type === "expense"
+      ? DEFAULT_EXPENSE_CATEGORIES.some((c) => c.id === cat.id)
+      : DEFAULT_INCOME_CATEGORIES.some((c) => c.id === cat.id);
+  };
 
   const getKey = (cat) =>
     cat.id ? `id:${cat.id}` : `name:${cat.name}`;
@@ -60,7 +52,7 @@ export default function CategoryScreen() {
     loadRemoved();
   }, []);
 
-  /* ---------------- SAVE + TOGGLE ---------------- */
+  /* ---------------- TOGGLE REMOVE ---------------- */
   const toggleCategory = (cat) => {
     const key = getKey(cat);
 
@@ -70,12 +62,11 @@ export default function CategoryScreen() {
         : [...prev, key];
 
       AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-
       return updated;
     });
   };
 
-  /* ---------------- LOAD API CATEGORIES ---------------- */
+  /* ---------------- FETCH ---------------- */
   const fetchCategories = async () => {
     if (!user) return;
 
@@ -97,7 +88,7 @@ export default function CategoryScreen() {
     }, [type])
   );
 
-  /* ---------------- ALL CATEGORIES ---------------- */
+  /* ---------------- MERGE ---------------- */
   const allCategories =
     type === "expense"
       ? [...DEFAULT_EXPENSE_CATEGORIES, ...customCategories]
@@ -155,45 +146,39 @@ export default function CategoryScreen() {
 
         {/* ACTIVE */}
         <View style={styles.listContainer}>
-          {visibleCategories.map((cat, index) => {
-            const isCustom = cat.id;
+          {visibleCategories.map((cat, index) => (
+            <View key={index} style={styles.listItem}>
+              <TouchableOpacity onPress={() => toggleCategory(cat)}>
+                <Ionicons name="remove-circle" size={20} color="#FF3B30" />
+              </TouchableOpacity>
 
-            return (
-              <View key={index} style={styles.listItem}>
-                {/* MINUS */}
-                <TouchableOpacity onPress={() => toggleCategory(cat)}>
-                  <Ionicons name="remove-circle" size={20} color="#FF3B30" />
+              <Ionicons name={cat.icon} size={22} color="#007AFF" />
+
+              <Text style={styles.listText}>{cat.name}</Text>
+
+              {!isDefaultCategory(cat) && (
+                <TouchableOpacity
+                  onPress={() =>
+                    router.push({
+                      pathname: "/category/updateCategory",
+                      params: {
+                        id: cat.id,
+                        name: cat.name,
+                        icon: cat.icon,
+                        type,
+                      },
+                    })
+                  }
+                >
+                  <Ionicons name="chevron-forward" size={18} color="#999" />
                 </TouchableOpacity>
+              )}
+            </View>
+          ))}
 
-                <Ionicons name={cat.icon} size={22} color="#007AFF" />
-
-                <Text style={styles.listText}>{cat.name}</Text>
-
-                {isCustom && (
-                  <TouchableOpacity
-                    onPress={() =>
-                      router.push({
-                        pathname: "/category/updateCategory",
-                        params: {
-                          id: cat.id,
-                          name: cat.name,
-                          icon: cat.icon,
-                          type,
-                        },
-                      })
-                    }
-                  >
-                    <Ionicons name="chevron-forward" size={18} color="#999" />
-                  </TouchableOpacity>
-                )}
-              </View>
-            );
-          })}
-
-          {/* REMOVED (BOTTOM) */}
+          {/* REMOVED */}
           {removedCategories.map((cat, index) => (
             <View key={`removed-${index}`} style={styles.listItem}>
-              {/* PLUS */}
               <TouchableOpacity onPress={() => toggleCategory(cat)}>
                 <Ionicons name="add-circle" size={20} color="#28a745" />
               </TouchableOpacity>
@@ -206,7 +191,7 @@ export default function CategoryScreen() {
             </View>
           ))}
 
-          {/* ADD CATEGORY */}
+          {/* ADD */}
           <TouchableOpacity
             style={styles.listItem}
             onPress={() =>
@@ -229,26 +214,11 @@ export default function CategoryScreen() {
 
 /* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
-  scrollContainer: {
-    padding: 20,
-  },
+  scrollContainer: { padding: 20 },
+  title: { fontSize: 24, fontWeight: "bold", marginBottom: 15 },
+  subtitle: { fontSize: 18, fontWeight: "600", marginBottom: 10 },
 
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 15,
-  },
-
-  subtitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 10,
-  },
-
-  typeContainer: {
-    flexDirection: "row",
-    marginBottom: 15,
-  },
+  typeContainer: { flexDirection: "row", marginBottom: 15 },
 
   typeButton: {
     flex: 1,
@@ -260,18 +230,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
   },
 
-  activeType: {
-    backgroundColor: "#007AFF",
-  },
+  activeType: { backgroundColor: "#007AFF" },
+  activeText: { color: "white", fontWeight: "bold" },
 
-  activeText: {
-    color: "white",
-    fontWeight: "bold",
-  },
-
-  listContainer: {
-    marginTop: 10,
-  },
+  listContainer: { marginTop: 10 },
 
   listItem: {
     flexDirection: "row",
