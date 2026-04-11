@@ -38,9 +38,12 @@ const STORAGE_KEY = "removed_categories";
 const CategoryDropdown = ({ data, value, onChange }) => {
   const [open, setOpen] = useState(false);
 
-  const selected = data.find(
-    (i) => String(i.id) === String(value)
-  );
+  const selected =
+    data.find((i) => String(i.id) === String(value)) ||
+    data.find(
+      (i) =>
+        i.name?.toLowerCase() === String(value)?.toLowerCase()
+    );
 
   return (
     <>
@@ -67,12 +70,12 @@ const CategoryDropdown = ({ data, value, onChange }) => {
 
             <FlatList
               data={data}
-              keyExtractor={(item) => item.id}
+              keyExtractor={(item) => item.id?.toString() || item.name}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={styles.item}
                   onPress={() => {
-                    onChange(item.id); // ✅ STORE ID ONLY
+                    onChange(item.id || item.name);
                     setOpen(false);
                   }}
                 >

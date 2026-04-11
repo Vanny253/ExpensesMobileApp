@@ -17,6 +17,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { getCategories } from "../../../api/categoryApi";
 import { addExpense, addIncome } from "../../../api/expenseApi";
 import { useUser } from "../../../context/UserContext";
+import {
+  DEFAULT_EXPENSE_CATEGORIES,
+  DEFAULT_INCOME_CATEGORIES,
+} from "../../../components/defaultIcon";
 
 const STORAGE_KEY = "removed_categories";
 
@@ -24,7 +28,7 @@ const STORAGE_KEY = "removed_categories";
 const CategoryDropdown = ({ data, value, onChange, placeholder }) => {
   const [open, setOpen] = useState(false);
 
-  const selected = data.find((i) => i.name === value);
+  const selected = data.find((i) => i.id === value);
 
   return (
     <>
@@ -37,7 +41,7 @@ const CategoryDropdown = ({ data, value, onChange, placeholder }) => {
             style={{ marginRight: 8 }}
           />
           <Text style={{ fontSize: 16 }}>
-            {value || placeholder}
+            {selected?.name  || placeholder}
           </Text>
         </View>
 
@@ -53,12 +57,12 @@ const CategoryDropdown = ({ data, value, onChange, placeholder }) => {
 
             <FlatList
               data={data}
-              keyExtractor={(item) => item.name}
+              keyExtractor={(item) => item.id?.toString() || item.name}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={styles.item}
                   onPress={() => {
-                    onChange(item.name);
+                    onChange(item.id);
                     setOpen(false);
                   }}
                 >
@@ -87,6 +91,11 @@ const CategoryDropdown = ({ data, value, onChange, placeholder }) => {
 
 const TransactionForm = ({ type }) => {
   const { user } = useUser();
+
+  const defaultCats =
+  type === "expense"
+    ? DEFAULT_EXPENSE_CATEGORIES
+    : DEFAULT_INCOME_CATEGORIES;
 
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
@@ -127,23 +136,6 @@ const TransactionForm = ({ type }) => {
         const saved = await AsyncStorage.getItem(STORAGE_KEY);
         const removedKeys = saved ? JSON.parse(saved) : [];
 
-        const defaultCats =
-          type === "expense"
-            ? [
-                { name: "Food", icon: "fast-food" },
-                { name: "Transport", icon: "car" },
-                { name: "Shopping", icon: "cart" },
-                { name: "Billing", icon: "receipt" },
-                { name: "Health", icon: "medkit" },
-                { name: "Other", icon: "ellipsis-horizontal" },
-              ]
-            : [
-                { name: "Salary", icon: "cash" },
-                { name: "Bonus", icon: "wallet" },
-                { name: "Gift", icon: "gift" },
-                { name: "Investment", icon: "trending-up" },
-                { name: "Other", icon: "ellipsis-horizontal" },
-              ];
 
         const allCategories = [
           ...defaultCats,

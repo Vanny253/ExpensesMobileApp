@@ -58,25 +58,22 @@ export default function MainScreen() {
     currentDate.getFullYear() === new Date().getFullYear();
 
   /* ---------------- CATEGORY RESOLVER (FIXED) ---------------- */
-  const resolveCategory = (categoryValue, type) => {
-    if (!categoryValue) return null;
+  const resolveCategory = (value, type) => {
+    if (!value) return null;
 
     const list =
       type === "income"
         ? [...DEFAULT_INCOME_CATEGORIES, ...incomeCategories]
         : [...DEFAULT_EXPENSE_CATEGORIES, ...expenseCategories];
 
-    // ✅ FIX: ID match (string-safe)
-    let found = list.find(
-      (c) => String(c.id) === String(categoryValue)
-    );
+    // 1. match by ID ONLY (main rule)
+    let found = list.find((c) => String(c.id) === String(value));
 
-    // ✅ fallback for old data (name-based)
+    // 2. fallback ONLY for old NAME data
     if (!found) {
       found = list.find(
         (c) =>
-          c.name?.toLowerCase() ===
-          String(categoryValue).toLowerCase()
+          c.name?.toLowerCase() === String(value).toLowerCase()
       );
     }
 
