@@ -15,7 +15,6 @@ import BackgroundWrapper from "../../../components/backgroundWrapper";
 import { DEFAULT_EXPENSE_CATEGORIES } from "../../../components/defaultIcon";
 import { useUser } from "../../../context/UserContext";
 
-
 const screenWidth = Dimensions.get("window").width;
 
 const colors = [
@@ -32,13 +31,15 @@ export default function ChartScreen() {
   const [categoryData, setCategoryData] = useState([]);
   const [subPeriodsList, setSubPeriodsList] = useState([]);
   const [expenseCategories, setExpenseCategories] = useState([]);
+  const [expenses, setExpenses] = useState([]);
 
-  const resolveCategory = (value) => {
+  // ✅ FIXED resolver
+  const resolveCategory = (value, categoriesList) => {
     if (!value) return null;
 
     const list = [
       ...(DEFAULT_EXPENSE_CATEGORIES || []),
-      ...(expenseCategories || []),
+      ...(categoriesList || []),
     ];
 
     return list.find((c) => {
@@ -74,65 +75,84 @@ export default function ChartScreen() {
     generateSubPeriods();
   }, [timeframe]);
 
+  // ✅ 1. Fetch categories ONCE
   useEffect(() => {
     if (!user) return;
 
-    const fetchData = async () => {
+    const fetchCategories = async () => {
       try {
-        const [expenses, cats] = await Promise.all([
-          getExpenses(user.user_id),
-          getCategories(user.user_id, "expense"),
-        ]);
-
+        const cats = await getCategories(user.user_id, "expense");
         setExpenseCategories(cats || []);
-
-        const now = new Date();
-        const month = now.getMonth() - subPeriod;
-
-        const filtered = expenses.filter((item) => {
-          const date = new Date(item.date);
-          return (
-            date.getMonth() === month &&
-            date.getFullYear() === now.getFullYear()
-          );
-        });
-
-        const categoryMap = {};
-
-        filtered.forEach((item) => {
-          const key =
-            typeof item.category === "object"
-              ? String(
-                  item.category.id ??
-                  item.category._id ??
-                  item.category.name
-                )
-              : String(item.category);
-
-          if (!categoryMap[key]) categoryMap[key] = 0;
-          categoryMap[key] += item.amount;
-        });
-
-        const chartData = Object.keys(categoryMap).map((cat, index) => {
-          const resolved = resolveCategory(cat);
-
-          return {
-            key: cat,
-            name: resolved?.name || resolved?.category_name || "Unknown Category",
-            icon: resolved?.icon || "help-circle",
-            population: categoryMap[cat],
-            color: colors[index % colors.length],
-          };
-        });
-
-        setCategoryData(chartData);
       } catch (err) {
         console.error(err);
       }
     };
 
-    fetchData();
-  }, [user, subPeriod, expenseCategories]);
+    fetchCategories();
+  }, [user]);
+
+  // ✅ 2. Fetch expenses when needed
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchExpenses = async () => {
+      try {
+        const data = await getExpenses(user.user_id);
+        setExpenses(data || []);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    fetchExpenses();
+  }, [user, subPeriod]);
+
+  // ✅ 3. Process chart AFTER both are ready
+  useEffect(() => {
+    if (!expenses.length) return;
+
+    const now = new Date();
+    const month = now.getMonth() - subPeriod;
+
+    const filtered = expenses.filter((item) => {
+      const date = new Date(item.date);
+      return (
+        date.getMonth() === month &&
+        date.getFullYear() === now.getFullYear()
+      );
+    });
+
+    const categoryMap = {};
+
+    filtered.forEach((item) => {
+      const key =
+        typeof item.category === "object"
+          ? String(
+              item.category.id ??
+              item.category._id ??
+              item.category.name
+            )
+          : String(item.category);
+
+      if (!categoryMap[key]) categoryMap[key] = 0;
+      categoryMap[key] += item.amount;
+    });
+
+    const chartData = Object.keys(categoryMap).map((cat, index) => {
+      const resolved = resolveCategory(cat, expenseCategories);
+
+      return {
+        key: cat,
+        name: resolved?.name || resolved?.category_name || "Unknown Category",
+        icon: resolved?.icon || "help-circle",
+        population: categoryMap[cat],
+        color: colors[index % colors.length],
+      };
+    });
+
+    setCategoryData(chartData);
+
+  }, [expenses, expenseCategories, subPeriod]);
 
   const totalAmount = categoryData.reduce(
     (sum, item) => sum + item.population,
@@ -141,7 +161,6 @@ export default function ChartScreen() {
 
   return (
     <BackgroundWrapper>
-
       <View style={styles.overlay}>
         <View style={styles.container}>
 
@@ -190,6 +209,12 @@ export default function ChartScreen() {
               </TouchableOpacity>
             ))}
           </ScrollView>
+
+          {!user && (
+            <Text style={styles.guestText}>
+              Guest Mode: Please login to view expense analytics.
+            </Text>
+          )}
 
           {/* PIE CHART */}
           <View style={styles.chartWrapper}>
@@ -261,95 +286,107 @@ export default function ChartScreen() {
         </View>
       </View>
     </BackgroundWrapper>
-
   );
 }
 
-/* ONLY BACKGROUND FIX */
 const styles = StyleSheet.create({
-  background: {
-    flex: 1,   // ✅ FULL SCREEN FIX
-  },
   overlay: {
-    flex: 1,   // ✅ ensures full height coverage
+    flex: 1,
   },
+
   container: {
     paddingTop: 20,
     paddingHorizontal: 25,
   },
 
-  topBar: { 
-    flexDirection: "row", 
-    justifyContent: "space-around", 
-    marginBottom: 10 },
-
-  topButton: { 
-    paddingVertical: 6, 
-    paddingHorizontal: 15, 
-    borderRadius: 20, 
-    borderWidth: 1, 
-    borderColor: "#007AFF" },
-
-  activeTopButton: { 
-    backgroundColor: "#007AFF" },
-
-  topButtonText: { 
-    color: "#007AFF", 
-    fontWeight: "bold" },
-
-  activeTopText: { 
-    color: "#fff" }
-    ,
-
-  subButton: { 
-    paddingHorizontal: 10, 
-    paddingVertical: 6, 
-    borderRadius: 14, 
-    borderWidth: 1, 
-    borderColor: "#007AFF", 
-    marginRight: 8 
+  topBar: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginBottom: 10,
   },
 
-  activeSubButton: { 
-    backgroundColor: "#007AFF" 
+  topButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#007AFF",
   },
 
-  subButtonText: { 
-    color: "#007AFF", 
-    fontSize: 13 
+  activeTopButton: {
+    backgroundColor: "#007AFF",
   },
 
-  activeSubText: { 
-    color: "#fff" 
+  topButtonText: {
+    color: "#007AFF",
+    fontWeight: "bold",
   },
 
-  chartWrapper: { 
-    alignItems: "center", 
-    marginTop: 20 
+  activeTopText: {
+    color: "#fff",
   },
 
-  progressContainer: { 
-    marginTop: 20 
+  subButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#007AFF",
+    marginRight: 8,
   },
 
-  progressItem: { 
-    marginBottom: 12 
+  activeSubButton: {
+    backgroundColor: "#007AFF",
   },
 
-  progressHeader: { 
-    flexDirection: "row", 
-    justifyContent: "space-between", 
-    marginBottom: 4 
+  subButtonText: {
+    color: "#007AFF",
+    fontSize: 13,
   },
 
-  progressLabel: { 
-    fontSize: 14, 
-    fontWeight: "600" 
+  guestText: {
+    textAlign: "center",
+    marginTop: 20,
+    marginBottom: 10,
+    fontSize: 14,
+    color: "#333",
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    overflow: "hidden",
   },
 
-  progressValue: { 
-    fontSize: 13, 
-    color: "#555" 
+  activeSubText: {
+    color: "#fff",
+  },
+
+  chartWrapper: {
+    alignItems: "center",
+    marginTop: 20,
+  },
+
+  progressContainer: {
+    marginTop: 20,
+  },
+
+  progressItem: {
+    marginBottom: 12,
+  },
+
+  progressHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+
+  progressLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+
+  progressValue: {
+    fontSize: 13,
+    color: "#555",
   },
 
   progressBarBackground: {
@@ -358,6 +395,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     overflow: "hidden",
   },
+
   progressBarFill: {
     height: "100%",
     borderRadius: 5,

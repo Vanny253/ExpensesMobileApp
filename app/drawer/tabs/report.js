@@ -12,6 +12,8 @@ import { useUser } from "../../../context/UserContext";
 import { getExpenses, getIncome } from "../../../api/expenseApi";
 import { getBudgets } from "../../../api/budgetApi";
 import { useRouter } from "expo-router";
+import BackgroundWrapper from "../../../components/backgroundWrapper";
+
 
 export default function ReportScreen() {
   const { user } = useUser();
@@ -91,54 +93,142 @@ export default function ReportScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Report</Text>
+    <BackgroundWrapper>
+      <ScrollView style={styles.container}>
+        
+        {/* ✅ GUEST MODE */}
+        {!user && (
+          <Text style={styles.guestText}>
+            Guest Mode: Please login to view your financial report.
+          </Text>
+        )}
 
-      {loading ? (
-        <ActivityIndicator size="large" color="#007AFF" style={{ marginTop: 20 }} />
-      ) : (
-        <>
-          {/* Monthly Statistic */}
-          <TouchableOpacity onPress={goToMonthlyStatistic} activeOpacity={0.7}>
-            <Text style={styles.sectionTitle}>Monthly Statistic</Text>
-            <View style={styles.row}>
-              <Text style={styles.month}>{monthName}</Text>
-              <View style={styles.statsRow}>
-                <Text>Expenses{"\n"}RM {expenses.toFixed(2)}</Text>
-                <Text>Income{"\n"}RM {income.toFixed(2)}</Text>
-                <Text>Balance{"\n"}RM {balance.toFixed(2)}</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
+        {/* USER MODE */}
+        {user && (
+          <>
+            {loading ? (
+              <ActivityIndicator
+                size="large"
+                color="#007AFF"
+                style={{ marginTop: 20 }}
+              />
+            ) : (
+              <>
+                {/* Monthly Statistic */}
+                <TouchableOpacity onPress={goToMonthlyStatistic} activeOpacity={0.7}>
+                  <View style={styles.sectionBox}>
+                    <Text style={styles.sectionTitle}>Monthly Statistic</Text>
 
-          {/* Monthly Budget */}
-          <TouchableOpacity onPress={goToMonthlyBudget} activeOpacity={0.7}>
-            <Text style={styles.sectionTitle}>Monthly Budget</Text>
-            <View style={styles.budgetContainer}>
-              <View style={styles.circle}>
-                <Text style={styles.circleText}>{percentage.toFixed(0)}%</Text>
-              </View>
-              <View>
-                <Text>Remaining: RM {remaining.toFixed(2)}</Text>
-                <Text>Budget: RM {budget.toFixed(2)}</Text>
-                <Text>Expenses: RM {expenses.toFixed(2)}</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-        </>
-      )}
-    </ScrollView>
+                    <View style={styles.row}>
+                      <Text style={styles.month}>{monthName}</Text>
+
+                      <View style={styles.statsRow}>
+                        <Text>Expenses{"\n"}RM {expenses.toFixed(2)}</Text>
+                        <Text>Income{"\n"}RM {income.toFixed(2)}</Text>
+                        <Text>Balance{"\n"}RM {balance.toFixed(2)}</Text>
+                      </View>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+
+                {/* Monthly Budget */}
+                <TouchableOpacity onPress={goToMonthlyBudget} activeOpacity={0.7}>
+                  <View style={styles.sectionBox}>
+                    <Text style={styles.sectionTitle}>Monthly Budget</Text>
+
+                    <View style={styles.budgetContainer}>
+                      <View style={styles.circle}>
+                        <Text style={styles.circleText}>
+                          {percentage.toFixed(0)}%
+                        </Text>
+                      </View>
+
+                      <View>
+                        <Text>Remaining: RM {remaining.toFixed(2)}</Text>
+                        <Text>Budget: RM {budget.toFixed(2)}</Text>
+                        <Text>Expenses: RM {expenses.toFixed(2)}</Text>
+                      </View>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              </>
+            )}
+          </>
+        )}
+      </ScrollView>
+    </BackgroundWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20 },
-  title: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
-  sectionTitle: { fontSize: 18, fontWeight: "bold", marginTop: 20 },
-  row: { flexDirection: "row", justifyContent: "space-between", marginTop: 10 },
-  month: { fontSize: 18, fontWeight: "bold" },
-  statsRow: { flexDirection: "row", gap: 20 },
-  budgetContainer: { flexDirection: "row", alignItems: "center", marginTop: 20, gap: 20 },
-  circle: { width: 80, height: 80, borderRadius: 40, borderWidth: 6, justifyContent: "center", alignItems: "center" },
-  circleText: { fontWeight: "bold" },
+  // 📦 Layout
+  container: {
+    flex: 1,
+  },
+
+  guestText: {
+    textAlign: "center",
+    marginTop: 20,
+    marginBottom: 10,
+    fontSize: 14,
+    color: "#333",
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+  },
+
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+  },
+
+  statsRow: {
+    flexDirection: "row",
+    gap: 20,
+  },
+
+  budgetContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 20,
+    gap: 20,
+  },
+
+  sectionBox: {
+    borderWidth: 1,
+    borderColor: "#a3d2fe",
+    backgroundColor: "#ffffff71",
+    borderRadius: 10,
+    paddingTop: 0,
+    padding: 15,
+    marginTop: 15,
+  },
+
+  // 📝 Text
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginTop: 10,
+
+  },
+
+  month: {
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+
+  circleText: {
+    fontWeight: "bold",
+  },
+
+  // 🎯 Components
+  circle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 6,
+    justifyContent: "center",
+    alignItems: "center",
+  },
 });

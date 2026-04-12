@@ -12,6 +12,8 @@ import { useUser } from "../../../context/UserContext";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "react-native";
+import BackgroundWrapper from "../../../components/backgroundWrapper";
+
 
 
 export default function ProfileTab() {
@@ -43,76 +45,79 @@ export default function ProfileTab() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      {user ? (
-        <>
-          {/* Profile Card */}
-          <View style={styles.card}>
-            <Image
-              source={
-                user?.profile_image
-                  ? { uri: user.profile_image + "?t=" + new Date().getTime() }
-                  : require("../../../assets/images/default.png")
-              }
-              style={styles.avatar}
-            />
+    <BackgroundWrapper>
+      <ScrollView style={styles.container}>
+        {user ? (
+          <>
+            {/* Profile Card */}
+            <View style={styles.card}>
+              <Image
+                source={
+                  user?.profile_image
+                    ? { uri: user.profile_image + "?t=" + new Date().getTime() }
+                    : require("../../../assets/images/default.png")
+                }
+                style={styles.avatar}
+              />
 
-            <View style={{ flex: 1 }}>
-              <Text style={styles.name}>{user.nickname}</Text>
-              <Text style={styles.email}>{user.email}</Text>
-              <Text style={styles.gender}>
-                {user.gender || "Not specified"}
-              </Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.name}>{user.nickname}</Text>
+                <Text style={styles.email}>{user.email}</Text>
+                <Text style={styles.gender}>
+                  {user.gender || "Not specified"}
+                </Text>
+              </View>
+
+              {/* PEN ICON: Navigate to Profile Detail */}
+              <TouchableOpacity onPress={() => router.push("/profileDetail")}>
+                <Ionicons name="pencil" size={18} color="#666" />
+              </TouchableOpacity>
             </View>
 
-            {/* PEN ICON: Navigate to Profile Detail */}
-            <TouchableOpacity onPress={() => router.push("/profileDetail")}>
-              <Ionicons name="pencil" size={18} color="#666" />
-            </TouchableOpacity>
+            {/* Actions */}
+            <View style={styles.section}>
+              <TouchableOpacity style={styles.item} onPress={handleLogout}>
+                <Ionicons name="log-out-outline" size={20} color="#333" />
+                <Text style={styles.itemText}>Logout</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.item} onPress={handleDelete}>
+                <Ionicons name="trash-outline" size={20} color="red" />
+                <Text style={[styles.itemText, { color: "red" }]}>
+                  Delete Account
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : (
+          <View style={styles.guestContainer}>
+            <Text style={styles.guestText}>You are currently a Guest</Text>
+
+            <View style={styles.buttonGroup}>
+              <TouchableOpacity
+                style={styles.loginButton}
+                onPress={() => router.push("/profile/login")}
+              >
+                <Text style={styles.loginText}>Login</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.signupButton}
+                onPress={() => router.push("/profile/signup")}
+              >
+                <Text style={styles.signupText}>Create Account</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-
-          {/* Actions */}
-          <View style={styles.section}>
-            <TouchableOpacity style={styles.item} onPress={handleLogout}>
-              <Ionicons name="log-out-outline" size={20} color="#333" />
-              <Text style={styles.itemText}>Logout</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.item} onPress={handleDelete}>
-              <Ionicons name="trash-outline" size={20} color="red" />
-              <Text style={[styles.itemText, { color: "red" }]}>
-                Delete Account
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </>
-      ) : (
-        <View style={styles.guestContainer}>
-          <Text style={styles.guestText}>You are currently a Guest</Text>
-
-          <TouchableOpacity
-            style={styles.button}
-            onPress={() => router.push("/profile/login")}
-          >
-            <Text style={styles.buttonText}>Login</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: "#aaa" }]}
-            onPress={() => router.push("/profile/signup")}
-          >
-            <Text style={styles.buttonText}>Signup</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </ScrollView>
+        )}
+      </ScrollView>
+    </BackgroundWrapper>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f2f2f2",
     padding: 15,
   },
 
@@ -155,7 +160,7 @@ const styles = StyleSheet.create({
   section: {
     backgroundColor: "#fff",
     borderRadius: 12,
-    paddingVertical: 10,
+    paddingVertical: 1,
   },
 
   item: {
@@ -177,22 +182,55 @@ const styles = StyleSheet.create({
     marginTop: 50,
   },
 
-  guestText: {
-    fontSize: 18,
-    marginBottom: 20,
-  },
+  // Guest
+guestContainer: {
+  alignItems: "center",
+  marginTop: 80,
+},
 
-  button: {
-    backgroundColor: "#007AFF",
-    padding: 12,
-    borderRadius: 8,
-    width: "80%",
-    alignItems: "center",
-    marginBottom: 10,
-  },
+guestText: {
+  fontSize: 20,
+  fontWeight: "600",
+  marginBottom: 30,
+  color: "#333",
+},
 
-  buttonText: {
-    color: "#fff",
-    fontWeight: "bold",
-  },
+buttonGroup: {
+  width: "100%",
+  alignItems: "center",
+  gap: 15,
+},
+
+// 🔵 Login (Primary)
+loginButton: {
+  backgroundColor: "#007AFF",
+  paddingVertical: 14,
+  borderRadius: 25,
+  width: "85%",
+  alignItems: "center",
+  elevation: 3,
+},
+
+loginText: {
+  color: "#fff",
+  fontWeight: "600",
+  fontSize: 16,
+},
+
+// ⚪ Signup (Secondary)
+signupButton: {
+  backgroundColor: "#fff",
+  paddingVertical: 14,
+  borderRadius: 25,
+  width: "85%",
+  alignItems: "center",
+  borderWidth: 1,
+  borderColor: "#007AFF",
+},
+
+signupText: {
+  color: "#007AFF",
+  fontWeight: "600",
+  fontSize: 16,
+},
 });

@@ -377,6 +377,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 20,
     fontSize: 16,
-    color: "#666",
+    color: "#333",
   },
 });

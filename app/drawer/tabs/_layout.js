@@ -58,7 +58,10 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="add_expense"
           options={{
-            title: "",
+            title: "Add Transaction",
+            headerStyle: {
+              backgroundColor: "#a3d2fe",
+            },
             tabBarIcon: () => (
               <View
                 style={{
@@ -71,6 +74,7 @@ export default function TabsLayout() {
                   marginBottom: 30,
                 }}
               >
+                
                 <Ionicons name="add" size={30} color="#fff" />
               </View>
             ),
@@ -81,6 +85,9 @@ export default function TabsLayout() {
           name="report"
           options={{
             title: "Reports",
+            headerStyle: {
+              backgroundColor: "#a3d2fe",
+            },
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="document-text-outline" size={size} color={color} />
             ),
@@ -91,6 +98,9 @@ export default function TabsLayout() {
           name="profile"
           options={{
             title: "Profile",
+            headerStyle: {
+              backgroundColor: "#a3d2fe",
+            },
             tabBarIcon: ({ color, size }) => (
               <Ionicons
                 name="person-circle-outline"

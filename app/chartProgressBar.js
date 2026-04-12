@@ -114,7 +114,6 @@ export default function ChartProgressBar() {
         </View>
       </View>
 
-      {/* CONTENT - Inside BackgroundWrapper */}
       <BackgroundWrapper>
         <View style={styles.contentPadding}>
 
