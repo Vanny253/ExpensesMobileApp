@@ -11,6 +11,19 @@ from scheduler import register_tasks
 from sqlalchemy.exc import IntegrityError
 import os
 from werkzeug.utils import secure_filename
+from PIL import Image
+import pytesseract
+import re
+import io
+from pyzbar.pyzbar import decode
+from PIL import Image
+import requests
+from playwright.sync_api import sync_playwright
+import pdfplumber
+import cv2
+import numpy as np
+
+
 
 
 app = Flask(__name__)
@@ -781,6 +794,432 @@ def get_monthly_budgets(user_id):
 
 
 
+
+
+# -------------------- TESSERACT PATH --------------------
+pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
+
+# =========================================================
+# 🧠 OCR API (NO IMAGE SAVING)
+# =========================================================
+@app.route("/ocr", methods=["POST"])
+def ocr():
+    try:
+        if "image" not in request.files:
+            return jsonify({"error": "No image uploaded"}), 400
+
+        file = request.files["image"]
+
+        # ✅ Read image
+        image_bytes = file.read()
+        image = Image.open(io.BytesIO(image_bytes))
+
+        # ================================
+        # 🔥 IMPROVE OCR QUALITY
+        # ================================
+        image = np.array(image)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+        # increase contrast
+        image = cv2.threshold(image, 150, 255, cv2.THRESH_BINARY)[1]
+
+        # ================================
+        # 🔍 OCR
+        # ================================
+        text = pytesseract.image_to_string(image)
+
+        # ================================
+        # 🧹 CLEAN TEXT
+        # ================================
+        text = text.upper()
+        text = text.replace(",", ".")  # normalize decimal
+
+        # fix common OCR mistakes
+        text = text.replace("O", "0")
+        text = text.replace("I", "1")
+        text = text.replace("S", "5")
+        text = text.replace("B", "8")
+
+        print("OCR TEXT:\n", text)
+
+        # ================================
+        # 📊 EXTRACT
+        # ================================
+        amount = extract_amount(text)
+        date = extract_date(text)
+
+        print("EXTRACTED AMOUNT:", amount)
+        print("EXTRACTED DATE:", date)
+
+        final_date = date.strftime("%Y-%m-%d") if date else None
+
+        return jsonify({
+            "amount": amount,
+            "date": final_date
+        }), 200
+
+    except Exception as e:
+        print("OCR ERROR:", e)
+        return jsonify({"error": "OCR failed"}), 500
+
+
+
+def extract_amount(text):
+    lines = text.upper().split("\n")
+
+    total_keywords = [
+        "TOTAL", "GRAND TOTAL", "AMOUNT DUE",
+        "NET TOTAL", "TOTAL AMOUNT",
+        "TOTAL PAYMENT", "BALANCE DUE"
+    ]
+
+    def find_amounts(line):
+        return re.findall(r"(?:RM|MYR)?\s*(\d+\.\d{2})", line)
+
+    # =====================================================
+    # 1️⃣ PRIORITY: TOTAL LINE (MOST ACCURATE)
+    # =====================================================
+    for line in lines:
+        clean = re.sub(r"\s+", " ", line)
+
+        for kw in total_keywords:
+            if kw in clean:
+                amounts = find_amounts(clean)
+                if amounts:
+                    return float(amounts[-1])
+
+    # =====================================================
+    # 2️⃣ SECOND: bottom section (common receipt layout)
+    # =====================================================
+    bottom = lines[-12:]
+
+    bottom_values = []
+    for line in bottom:
+        vals = find_amounts(line)
+        bottom_values += vals
+
+    if bottom_values:
+        # take LARGEST but NOT crazy values
+        values = [float(v) for v in bottom_values if 1 < float(v) < 10000]
+        if values:
+            return max(values)
+
+    # =====================================================
+    # 3️⃣ FINAL: fallback safe max
+    # =====================================================
+    all_vals = re.findall(r"\d+\.\d{2}", text)
+
+    values = [float(v) for v in all_vals if 1 < float(v) < 10000]
+
+    if values:
+        return max(values)
+
+    return None
+
+
+MONTHS = {
+    "JAN": "01", "FEB": "02", "MAR": "03", "APR": "04",
+    "MAY": "05", "JUN": "06", "JUL": "07", "AUG": "08",
+    "SEP": "09", "OCT": "10", "NOV": "11", "DEC": "12"
+}
+
+
+def parse_numeric_date(date_str):
+    match = re.search(r"(\d{2,4})[/-](\d{1,2})[/-](\d{1,2})", date_str)
+    if not match:
+        return None
+
+    a, b, c = match.groups()
+
+    try:
+        # CASE 1: YYYY-MM-DD or YYYY/MM/DD
+        if len(a) == 4:
+            y, m, d = int(a), int(b), int(c)
+
+        # CASE 2: DD-MM-YYYY or DD/MM/YYYY
+        elif len(c) == 4:
+            d, m, y = int(a), int(b), int(c)
+
+        # CASE 3: fallback guess (VERY IMPORTANT FIX)
+        else:
+            d, m, y = int(a), int(b), int("20" + c)
+
+        # 🔥 VALIDATE DATE (prevents 2013 wrong parsing)
+        return datetime(y, m, d)
+
+    except:
+        return None
+
+
+def extract_date(text):
+    lines = text.split("\n")
+
+    # 1️⃣ PRIORITY: DATE line
+    for line in lines:
+        if re.search(r"\bDATE\b", line, re.IGNORECASE):
+
+            clean = re.sub(r"DATE\s*[:\-]?\s*", "", line, flags=re.IGNORECASE)
+
+            parsed = parse_numeric_date(clean)
+            if parsed:
+                return parsed
+
+            match = re.search(r"(\d{1,2})\s+([A-Z]{3,})\s+(\d{4})", clean)
+            if match:
+                d, mon, y = match.groups()
+                mon = mon[:3]
+                if mon in MONTHS:
+                    return datetime(int(y), int(MONTHS[mon]), int(d))
+
+    # 2️⃣ FULL TEXT
+    parsed = parse_numeric_date(text)
+    if parsed:
+        return parsed
+
+    # 3️⃣ TEXT FORMAT
+    match = re.search(r"(\d{1,2})\s+([A-Z]{3})\s+(\d{4})", text)
+    if match:
+        d, mon, y = match.groups()
+        if mon in MONTHS:
+            return datetime(int(y), int(MONTHS[mon]), int(d))
+
+    return None
+
+
+
+
+
+# =========================================================
+# 🌐 PLAYWRIGHT SCRAPER
+# =========================================================
+
+
+
+def scrape_with_playwright(url):
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+
+        print("🌐 OPEN:", url)
+
+        result = {
+            "amount": None,
+            "date": None,
+            "title": "E-Invoice Receipt"
+        }
+
+        try:
+            # =========================================================
+            # 📄 AEON PDF HANDLING
+            # =========================================================
+            if "aeon" in url.lower():
+                print("📄 AEON DETECTED → downloading PDF")
+
+                response = requests.get(url, timeout=30)
+
+                if "pdf" in response.headers.get("content-type", "").lower():
+                    file_path = "temp_receipt.pdf"
+                    with open(file_path, "wb") as f:
+                        f.write(response.content)
+
+                    text = extract_text_from_pdf(file_path)
+                else:
+                    text = ""
+
+            # =========================================================
+            # 🌐 NORMAL WEB PAGE
+            # =========================================================
+            else:
+                page.goto(url, wait_until="domcontentloaded", timeout=60000)
+
+                try:
+                    page.wait_for_selector("text=Total", timeout=15000)
+                except:
+                    page.wait_for_load_state("networkidle")
+
+                text = page.inner_text("body")
+
+            print("📄 TEXT SAMPLE:\n", text[:1200])
+
+            # =========================================================
+            # 💰 AMOUNT EXTRACTION (FIXED)
+            # =========================================================
+            amount = None
+
+            priority_patterns = [
+                r"(?:Grand\s+Total|Total\s+Payable|Amount\s+Including\s+Tax)[^\d]*(\d{1,3}(?:,\d{3})*\.\d{2})",
+                r"(?:Total)[^\d]*(\d{1,3}(?:,\d{3})*\.\d{2})"
+            ]
+
+            for pattern in priority_patterns:
+                match = re.search(pattern, text, re.IGNORECASE)
+                if match:
+                    amount = float(match.group(1).replace(",", ""))
+                    break
+
+            # fallback → take biggest number (usually total)
+            if amount is None:
+                matches = re.findall(r"(?:RM|MYR)?\s*(\d{1,3}(?:,\d{3})*\.\d{2})", text)
+                if matches:
+                    amount = max([float(m.replace(",", "")) for m in matches])
+
+            result["amount"] = amount
+
+            # =========================================================
+            # 📅 DATE EXTRACTION (FIXED FOR YOUR CASE)
+            # =========================================================
+            date = None
+
+            # MR DIY / MyInvois format: 2026-03-10
+            match = re.search(r"(\d{4}-\d{2}-\d{2})", text)
+
+            if match:
+                raw_date = match.group(1)
+                try:
+                    dt = datetime.strptime(raw_date, "%Y-%m-%d")
+                    date = dt.strftime("%d/%m/%Y")  # 10/03/2026
+                except:
+                    date = None
+
+            # fallback (optional)
+            if date is None:
+                match2 = re.search(r"(\d{2}/\d{2}/\d{4})", text)
+                if match2:
+                    date = match2.group(1)
+
+            result["date"] = date
+
+            # =========================================================
+            # 🏪 TITLE EXTRACTION (optional improvement)
+            # =========================================================
+            title_match = re.search(
+                r"(MR\.?\s*D\.?I\.?Y\.?|AEON|7-ELEVEN|LOTUS|TESCO)",
+                text,
+                re.IGNORECASE
+            )
+
+            if title_match:
+                result["title"] = title_match.group(1)
+
+            browser.close()
+
+            print("✅ FINAL RESULT:", result)
+            return result
+
+        except Exception as e:
+            browser.close()
+            print("❌ ERROR:", str(e))
+
+            return {
+                "amount": None,
+                "date": None,
+                "title": "E-Invoice Receipt",
+                "error": str(e)
+            }
+
+# =========================================================
+# 📄 PDF PARSER (AEON FIX)
+# =========================================================
+def extract_text_from_pdf(path):
+    text = ""
+
+    try:
+        with pdfplumber.open(path) as pdf:
+            for page in pdf.pages:
+                text += page.extract_text() + "\n"
+    except Exception as e:
+        print("❌ PDF PARSE ERROR:", e)
+
+    return text
+
+
+# =========================================================
+# 📅 DATE PARSER
+# =========================================================
+def parse_einvoice_date(date_str):
+    if not date_str:
+        return None
+
+    date_str = date_str.strip()
+
+    formats = [
+        "%d/%m/%Y", "%d-%m-%Y",
+        "%d/%m/%y", "%d-%m-%y",
+        "%d %b %Y", "%d %B %Y",
+        "%m/%d/%Y"
+    ]
+
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(date_str, fmt)
+            if 2020 <= dt.year <= 2030:
+                return dt.strftime("%Y-%m-%d")
+        except:
+            continue
+
+    return None
+
+
+def normalize_date(date_str):
+    if not date_str:
+        return None
+
+    try:
+        # already correct format
+        if len(date_str) == 10 and date_str[4] == "-":
+            y, m, d = date_str.split("-")
+
+            # detect broken year like 2018 vs 2026 issue
+            if int(y) < 2020:
+                # assume OCR/website swapped year/day
+                return f"20{d}-{m}-{y[-2:]}"  # fallback fix
+
+            return date_str
+
+    except:
+        return None
+
+
+
+
+
+
+
+# =========================================================
+# 📡 API ENDPOINT (REPLACE OLD ONE)
+# =========================================================
+@app.route("/parse-einvoice", methods=["POST"])
+def parse_einvoice():
+    try:
+        data = request.get_json()
+        url = data.get("url")
+
+        print("🌐 URL:", url)   # ✅ HERE
+
+        if not url:
+            return jsonify({
+                "amount": None,
+                "date": None,
+                "title": "E-Invoice",
+                "error": "Missing URL"
+            }), 400
+
+        result = scrape_with_playwright(url)
+
+        print("📥 PARSED RESULT:", result)
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        print("❌ PARSE ERROR:", str(e))
+
+        return jsonify({
+            "amount": None,
+            "date": None,
+            "title": "E-Invoice",
+            "error": str(e)
+        }), 500
 
 
 

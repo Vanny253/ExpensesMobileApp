@@ -22,6 +22,10 @@ import {
   DEFAULT_INCOME_CATEGORIES,
 } from "../../../components/defaultIcon";
 import BackgroundWrapper from "../../../components/backgroundWrapper";
+import { useLocalSearchParams } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback } from "react";
+
 
 const STORAGE_KEY = "removed_categories";
 
@@ -102,8 +106,11 @@ const TransactionForm = ({ type }) => {
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
   const [date, setDate] = useState(new Date());
+  
   const [showDatePicker, setShowDatePicker] = useState(false);
 
+  // const { amount: scannedAmount, date: scannedDate, title: scannedTitle } = useLocalSearchParams();
+  const params = useLocalSearchParams();
   const [categories, setCategories] = useState([]);
   const [removedKeys, setRemovedKeys] = useState([]);
 
@@ -117,6 +124,63 @@ const TransactionForm = ({ type }) => {
     };
     loadRemoved();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      // when screen comes into focus → reset everything
+      setTitle("");
+      setAmount("");
+      setCategory("");
+      setDate(new Date());
+    }, [])
+  );
+
+
+  useEffect(() => {
+    const scannedAmount = params.scannedAmount ?? params.amount;
+    const scannedDate = params.scannedDate ?? params.date;
+    const scannedTitle = params.scannedTitle ?? params.title;
+
+    if (!scannedAmount && !scannedDate && !scannedTitle) return;
+
+    console.log("📥 SCANNED DATA RECEIVED:", {
+      scannedAmount,
+      scannedDate,
+      scannedTitle,
+    });
+
+    // 💰 AMOUNT
+    if (scannedAmount && String(scannedAmount) !== String(amount)) {
+      setAmount(String(scannedAmount));
+    }
+
+    // 📅 DATE
+    if (scannedDate) {
+      let parsedDate = null;
+
+      if (scannedDate.includes("/")) {
+        const [day, month, year] = scannedDate.split("/");
+        parsedDate = new Date(year, month - 1, day);
+      } else {
+        parsedDate = new Date(scannedDate);
+      }
+
+      if (
+        parsedDate &&
+        !isNaN(parsedDate.getTime()) &&
+        parsedDate.getTime() !== date.getTime()
+      ) {
+        setDate(parsedDate);
+      }
+    }
+
+    // 🏪 TITLE
+    if (scannedTitle && scannedTitle !== title) {
+      setTitle(scannedTitle);
+    }
+
+  }, [params]); // ✅ FIXED
+
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -162,7 +226,7 @@ const TransactionForm = ({ type }) => {
       title,
       amount: parseFloat(amount),
       category,
-      date: date.toISOString().split("T")[0],
+      date: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`,
     };
 
     if (type === "expense") await addExpense(data);
@@ -202,11 +266,24 @@ const TransactionForm = ({ type }) => {
         style={styles.dateButton}
         onPress={() => setShowDatePicker(true)}
       >
-        <Text>{date.toDateString()}</Text>
+      <Text>
+        {date.toDateString()}
+      </Text>
       </TouchableOpacity>
 
       {showDatePicker && (
-        <DateTimePicker value={date} mode="date" onChange={() => {}} />
+        <DateTimePicker
+          value={date}
+          mode="date"
+          display="default"
+          onChange={(event, selectedDate) => {
+            setShowDatePicker(false);
+
+            if (selectedDate) {
+              setDate(selectedDate);
+            }
+          }}
+        />
       )}
 
       <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>

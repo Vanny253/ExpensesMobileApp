@@ -1,10 +1,15 @@
-import { Tabs, useNavigation, router } from "expo-router";
-import { TouchableOpacity, View } from "react-native";
+import { Tabs, useNavigation } from "expo-router";
+import { TouchableOpacity, View, Modal } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { DrawerActions } from "@react-navigation/native";
+import { useState } from "react";
+import Chatbot from "../../chatbot/chatbot";
 
 export default function TabsLayout() {
   const navigation = useNavigation();
+
+  // ✅ ADD THIS
+  const [chatVisible, setChatVisible] = useState(false);
 
   return (
     <>
@@ -18,11 +23,11 @@ export default function TabsLayout() {
               <Ionicons name="menu-outline" size={28} />
             </TouchableOpacity>
           ),
-          
+
           tabBarActiveTintColor: "#007AFF",
           tabBarInactiveTintColor: "#515151",
           tabBarStyle: {
-            height: 70,    
+            height: 70,
             paddingBottom: 15,
             backgroundColor: "#a3d2fe",
           },
@@ -54,11 +59,10 @@ export default function TabsLayout() {
           }}
         />
 
-        {/* ADD BUTTON (Middle) */}
         <Tabs.Screen
           name="add_expense"
           options={{
-            title: "Add Transaction",
+            title: "",
             headerStyle: {
               backgroundColor: "#a3d2fe",
             },
@@ -74,7 +78,6 @@ export default function TabsLayout() {
                   marginBottom: 30,
                 }}
               >
-                
                 <Ionicons name="add" size={30} color="#fff" />
               </View>
             ),
@@ -112,9 +115,9 @@ export default function TabsLayout() {
         />
       </Tabs>
 
-      {/* Floating Chatbot Button */}
+      {/* ✅ UPDATED CHATBOT BUTTON */}
       <TouchableOpacity
-        onPress={() => router.push("../chatbot/chatbot")}
+        onPress={() => setChatVisible(true)} 
         style={{
           position: "absolute",
           bottom: 75,
@@ -137,6 +140,38 @@ export default function TabsLayout() {
           color="#332f2fff"
         />
       </TouchableOpacity>
+
+      {/* ✅ NEW POP-UP CHATBOT */}
+      <Modal visible={chatVisible} animationType="slide" transparent={true}>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "flex-end",
+            backgroundColor: "rgba(0,0,0,0.3)",
+          }}
+        >
+          <View
+            style={{
+              height: "75%",
+              backgroundColor: "#fff",
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              padding: 10,
+            }}
+          >
+            {/* Close Button */}
+            <TouchableOpacity
+              onPress={() => setChatVisible(false)}
+              style={{ alignSelf: "flex-end", marginBottom: 5 }}
+            >
+              <Ionicons name="close" size={28} />
+            </TouchableOpacity>
+
+            {/* Chatbot */}
+            <Chatbot />
+          </View>
+        </View>
+      </Modal>
     </>
   );
 }

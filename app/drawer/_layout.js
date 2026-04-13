@@ -9,6 +9,9 @@ export default function RootLayout() {
         screenOptions={{
           headerShown: true,
           drawerType: "slide",
+          drawerStyle: {
+            width: 250, // 👈 half screen
+          },
         }}
       >
         {/* Bottom Tabs */}
@@ -26,6 +29,9 @@ export default function RootLayout() {
           options={{
             drawerLabel: "Category",
             title: "Category",
+            headerStyle: {
+              backgroundColor: "#a3d2fe",
+            },
             
           }}
         />
@@ -35,6 +41,9 @@ export default function RootLayout() {
           options={{
             drawerLabel: "Reminder",
             title: "Reminder",
+            headerStyle: {
+              backgroundColor: "#a3d2fe",
+            },
           }}
         />
 
@@ -43,6 +52,9 @@ export default function RootLayout() {
           options={{
             drawerLabel: "Regular Payment",
             title: "Regular Payment",
+            headerStyle: {
+              backgroundColor: "#a3d2fe",
+            },
           }}
         />
 
@@ -51,6 +63,9 @@ export default function RootLayout() {
           options={{
             drawerLabel: "Budget",
             title: "Budget",
+            headerStyle: {
+              backgroundColor: "#a3d2fe",
+            },
           }}
         />
 
@@ -59,6 +74,9 @@ export default function RootLayout() {
           options={{
             drawerLabel: "Export Data",
             title: "Export Data",
+            headerStyle: {
+              backgroundColor: "#a3d2fe",
+            },
           }}
         />
 
@@ -67,6 +85,9 @@ export default function RootLayout() {
           options={{
             drawerLabel: "About Us",
             title: "About Us",
+            headerStyle: {
+              backgroundColor: "#a3d2fe",
+            },
           }}
         />
 
@@ -75,6 +96,9 @@ export default function RootLayout() {
           options={{
             drawerLabel: "Contact Us",
             title: "Contact Us",
+            headerStyle: {
+              backgroundColor: "#a3d2fe",
+            },
           }}
         />
       </Drawer>

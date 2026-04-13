@@ -1,6 +1,8 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import BottomTabs from "../../components/_BottomTabs";
+import BackgroundWrapper from "../../components/backgroundWrapper";
+
 
 export default function ContactUsScreen() {
   const handleEmail = () => {
@@ -12,58 +14,59 @@ export default function ContactUsScreen() {
   };
 
   return (
-    <View style={{ flex: 1 }}>
-      {/* Main Content */}
-      <ScrollView style={styles.container}>
-        <Text style={styles.title}>Contact Us</Text>
+    <BackgroundWrapper>
+      <View style={{ flex: 1 }}>
+        {/* Main Content */}
+        <ScrollView style={styles.container}>
+          <Text style={styles.title}>Contact Us</Text>
 
-        {/* Description */}
-        <View style={styles.card}>
-          <Text style={styles.text}>
-            If you have any questions, feedback, or issues regarding the app,
-            feel free to contact us through the following channels.
-          </Text>
-        </View>
+          {/* Description */}
+          <View style={styles.card}>
+            <Text style={styles.text}>
+              If you have any questions, feedback, or issues regarding the app,
+              feel free to contact us through the following channels.
+            </Text>
+          </View>
 
-        {/* Contact Info */}
-        <Text style={styles.sectionTitle}>Get in Touch</Text>
+          {/* Contact Info */}
+          <Text style={styles.sectionTitle}>Get in Touch</Text>
 
-        <View style={styles.card}>
-          {/* Email */}
-          <TouchableOpacity style={styles.item} onPress={handleEmail}>
-            <Ionicons name="mail-outline" size={20} color="#007AFF" />
-            <Text style={styles.itemText}>mobile@gmail.com</Text>
-          </TouchableOpacity>
+          <View style={styles.card}>
+            {/* Email */}
+            <TouchableOpacity style={styles.item} onPress={handleEmail}>
+              <Ionicons name="mail-outline" size={20} color="#007AFF" />
+              <Text style={styles.itemText}>mobile@gmail.com</Text>
+            </TouchableOpacity>
 
-          {/* Phone */}
-          <TouchableOpacity style={styles.item} onPress={handlePhone}>
-            <Ionicons name="call-outline" size={20} color="#007AFF" />
-            <Text style={styles.itemText}>+60 12-345 6789</Text>
-          </TouchableOpacity>
+            {/* Phone */}
+            <TouchableOpacity style={styles.item} onPress={handlePhone}>
+              <Ionicons name="call-outline" size={20} color="#007AFF" />
+              <Text style={styles.itemText}>+60 12-345 6789</Text>
+            </TouchableOpacity>
 
-        </View>
+          </View>
 
-        {/* Support Section */}
-        <Text style={styles.sectionTitle}>Support</Text>
+          {/* Support Section */}
+          <Text style={styles.sectionTitle}>Support</Text>
 
-        <View style={styles.card}>
-          <Text style={styles.text}>
-            For technical support, please include screenshots and a clear
-            description of the issue when contacting us.
-          </Text>
-        </View>
-      </ScrollView>
+          <View style={styles.card}>
+            <Text style={styles.text}>
+              For technical support, please include screenshots and a clear
+              description of the issue when contacting us.
+            </Text>
+          </View>
+        </ScrollView>
 
-      {/* Bottom Tabs */}
-      <BottomTabs />
-    </View>
+        {/* Bottom Tabs */}
+        <BottomTabs />
+      </View>
+    </BackgroundWrapper>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f2f2f2",
     padding: 15,
   },
 

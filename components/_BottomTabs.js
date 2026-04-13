@@ -1,13 +1,8 @@
 import { View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { router, usePathname } from "expo-router";
+import { router } from "expo-router";
 
 export default function BottomTabs() {
-  const pathname = usePathname(); // current route path
-
-  // function to determine color
-  const getColor = (path) => (pathname === path ? "#007AFF" : "grey");
-
   return (
     <View
       style={{
@@ -17,7 +12,11 @@ export default function BottomTabs() {
         alignItems: "center",
         borderTopWidth: 1,
         borderColor: "#ddd",
-        backgroundColor: "white",
+        backgroundColor: "#a3d2fe",
+        paddingLeft: 20,
+        paddingRight: 20,
+        marginLeft: -20,
+        marginRight: -20,
       }}
     >
       {/* Expenses Tab */}
@@ -25,8 +24,8 @@ export default function BottomTabs() {
         style={{ justifyContent: "center", alignItems: "center", marginTop: -15, marginLeft: -5 }}
         onPress={() => router.push("/drawer/tabs/")}
       >
-        <Ionicons name="cash-outline" size={22} color={getColor("/drawer/tabs/index")} />
-        <Text style={{ fontSize: 10, color: getColor("/drawer/tabs/index") }}>Expenses</Text>
+        <Ionicons name="cash-outline" size={22} color="#515151" />
+        <Text style={{ fontSize: 10, color: "#515151" }}>Expenses</Text>
       </TouchableOpacity>
 
       {/* Charts Tab */}
@@ -34,11 +33,11 @@ export default function BottomTabs() {
         style={{ justifyContent: "center", alignItems: "center", marginTop: -15, marginLeft: -5 }}
         onPress={() => router.push("/drawer/tabs/charts")}
       >
-        <Ionicons name="pie-chart-outline" size={22} color={getColor("/drawer/tabs/charts")} />
-        <Text style={{ fontSize: 10, color: getColor("/drawer/tabs/charts") }}>Charts</Text>
+        <Ionicons name="pie-chart-outline" size={22} color="#515151" />
+        <Text style={{ fontSize: 10, color: "#515151" }}>Charts</Text>
       </TouchableOpacity>
 
-      {/* ADD BUTTON (middle) */}
+      {/* ADD BUTTON */}
       <TouchableOpacity
         onPress={() => router.push("/drawer/tabs/add_expense")}
         style={{
@@ -59,8 +58,8 @@ export default function BottomTabs() {
         style={{ justifyContent: "center", alignItems: "center", marginTop: -15 }}
         onPress={() => router.push("/drawer/tabs/report")}
       >
-        <Ionicons name="document-text-outline" size={24} color={getColor("/drawer/tabs/report")} />
-        <Text style={{ fontSize: 10, color: getColor("/report") }}>Report</Text>
+        <Ionicons name="document-text-outline" size={24} color="#515151" />
+        <Text style={{ fontSize: 10, color: "#515151" }}>Report</Text>
       </TouchableOpacity>
 
       {/* Profile Tab */}
@@ -68,8 +67,8 @@ export default function BottomTabs() {
         style={{ justifyContent: "center", alignItems: "center", marginTop: -15, marginLeft: -5 }}
         onPress={() => router.push("/drawer/tabs/profile")}
       >
-        <Ionicons name="person-circle-outline" size={22} color={getColor("/drawer/tabs/profile")} />
-        <Text style={{ fontSize: 10, color: getColor("/drawer/tabs/profile") }}>Profile</Text>
+        <Ionicons name="person-circle-outline" size={22} color="#515151" />
+        <Text style={{ fontSize: 10, color: "#515151" }}>Profile</Text>
       </TouchableOpacity>
     </View>
   );
