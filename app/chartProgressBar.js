@@ -2,12 +2,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  FlatList,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
+
 import { getCategories } from "../api/categoryApi";
 import { getExpenses, getIncome } from "../api/expenseApi";
 import BackgroundWrapper from "../components/backgroundWrapper";
@@ -17,28 +18,68 @@ import { useUser } from "../context/UserContext";
 export default function ChartProgressBar() {
   const { user } = useUser();
   const router = useRouter();
-  const { category, name, month } = useLocalSearchParams();
+
+  const {
+    category,
+    name,
+    timeframe,
+    subPeriod,
+    startDate,
+    endDate,
+  } = useLocalSearchParams();
 
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState([]);
   const [expenseCategories, setExpenseCategories] = useState([]);
 
+  // -----------------------------
+  // CATEGORY RESOLVER
+  // -----------------------------
   const resolveCategory = (value) => {
     if (!value) return null;
 
-    const list = [...DEFAULT_EXPENSE_CATEGORIES, ...expenseCategories];
+    const list = [
+      ...(DEFAULT_EXPENSE_CATEGORIES || []),
+      ...(expenseCategories || []),
+    ];
 
-    let found = list.find((c) => String(c.id) === String(value));
+    return (
+      list.find((c) => String(c.id) === String(value)) ||
+      list.find(
+        (c) =>
+          (c.name || "").toLowerCase() === String(value).toLowerCase()
+      )
+    );
+  };
 
-    if (!found) {
-      found = list.find(
-        (c) => c.name?.toLowerCase() === String(value).toLowerCase()
+  // -----------------------------
+  // CATEGORY MATCH FIX (IMPORTANT)
+  // -----------------------------
+  const matchCategory = (item) => {
+    const target = String(category);
+
+    const cat = item.category;
+
+    if (!cat) return false;
+
+    if (String(cat) === target) return true;
+
+    if (typeof cat === "object") {
+      return (
+        String(cat.id) === target ||
+        String(cat._id) === target ||
+        String(cat.name).toLowerCase() === target.toLowerCase()
       );
     }
 
-    return found;
+    return (
+      String(cat).toLowerCase() === target.toLowerCase()
+    );
   };
 
+  // -----------------------------
+  // FETCH DATA
+  // -----------------------------
   useEffect(() => {
     if (!user) return;
 
@@ -55,24 +96,67 @@ export default function ChartProgressBar() {
         setExpenseCategories(cats || []);
 
         const all = [
-          ...expenses.map((e) => ({ ...e, type: "expense" })),
-          ...income.map((i) => ({ ...i, type: "income" })),
+          ...(expenses || []).map((e) => ({
+            ...e,
+            type: "expense",
+          })),
+          ...(income || []).map((i) => ({
+            ...i,
+            type: "income",
+          })),
         ];
 
-        const now = new Date();
-        const targetMonth = now.getMonth() - Number(month);
-
         const filtered = all.filter((item) => {
+          if (!matchCategory(item)) return false;
+
           const d = new Date(item.date);
 
-          return (
-            d.getMonth() === targetMonth &&
-            d.getFullYear() === now.getFullYear() &&
-            String(item.category) === String(category)
-          );
+          // ---------------------
+          // WEEK MODE (FIXED)
+          // ---------------------
+          if (timeframe === "week") {
+            if (!startDate || !endDate) return false;
+
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+
+            return d >= start && d <= end;
+          }
+
+          // ---------------------
+          // MONTH MODE
+          // ---------------------
+          if (timeframe === "month") {
+            const now = new Date();
+
+            const targetMonth = new Date(
+              now.getFullYear(),
+              now.getMonth() - Number(subPeriod),
+              1
+            );
+
+            return (
+              d.getMonth() === targetMonth.getMonth() &&
+              d.getFullYear() === targetMonth.getFullYear()
+            );
+          }
+
+          // ---------------------
+          // YEAR MODE
+          // ---------------------
+          if (timeframe === "year") {
+            return (
+              d.getFullYear() ===
+              new Date().getFullYear()
+            );
+          }
+
+          return false;
         });
 
-        filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+        filtered.sort(
+          (a, b) => new Date(b.date) - new Date(a.date)
+        );
 
         setTransactions(filtered);
       } catch (err) {
@@ -83,8 +167,18 @@ export default function ChartProgressBar() {
     };
 
     fetchData();
-  }, [user, category, month]);
+  }, [
+    user,
+    category,
+    timeframe,
+    subPeriod,
+    startDate,
+    endDate,
+  ]);
 
+  // -----------------------------
+  // LOADING
+  // -----------------------------
   if (loading) {
     return (
       <View style={styles.center}>
@@ -93,17 +187,22 @@ export default function ChartProgressBar() {
     );
   }
 
+  // -----------------------------
+  // UI
+  // -----------------------------
   return (
     <View style={styles.container}>
 
-      {/* HEADER - Outside BackgroundWrapper */}
+      {/* HEADER */}
       <View style={styles.headerWrapper}>
         <View style={styles.header}>
           <Ionicons
             name="arrow-back"
             size={24}
-            color="#000000"
-            onPress={() => router.replace("/drawer/tabs/charts")}
+            color="#000"
+            onPress={() =>
+              router.replace("/drawer/tabs/charts")
+            }
           />
 
           <Text style={styles.headerTitle}>
@@ -127,7 +226,9 @@ export default function ChartProgressBar() {
 
           <FlatList
             data={transactions}
-            keyExtractor={(item) => `${item.type}-${item.id}`}
+            keyExtractor={(item, index) =>
+              `${item.type}-${index}`
+            }
             renderItem={({ item }) => {
               const resolved = resolveCategory(item.category);
 
@@ -160,7 +261,9 @@ export default function ChartProgressBar() {
                       RM {item.amount}
                     </Text>
 
-                    <Text style={styles.date}>{item.date}</Text>
+                    <Text style={styles.date}>
+                      {new Date(item.date).toLocaleDateString()}
+                    </Text>
                   </View>
 
                 </View>
@@ -170,15 +273,13 @@ export default function ChartProgressBar() {
 
         </View>
       </BackgroundWrapper>
-
     </View>
   );
 }
 
+// -----------------------------
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
 
   center: {
     flex: 1,
@@ -186,7 +287,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  /* HEADER - Full width blue, outside BackgroundWrapper */
   headerWrapper: {
     position: "absolute",
     top: 0,
@@ -206,15 +306,13 @@ const styles = StyleSheet.create({
   },
 
   headerTitle: {
-    color: "#000000",
     fontSize: 18,
     fontWeight: "bold",
   },
 
-  /* CONTENT - Padding inside BackgroundWrapper */
   contentPadding: {
     flex: 1,
-    paddingTop: 90,      // Push below header
+    paddingTop: 90,
   },
 
   title: {
@@ -236,7 +334,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: "#ffffff71",
     borderWidth: 1,
-    borderColor: "rgb(182, 182, 182)",
+    borderColor: "#b6b6b6",
   },
 
   left: {

@@ -478,7 +478,8 @@ export default function ChartScreen() {
                       params: {
                         category: item.key,
                         name: item.name,
-                        month: subPeriod,
+                        timeframe,
+                        subPeriod,
                       },
                     })
                   }
