@@ -64,9 +64,63 @@ export default function ChartScreen() {
 
   const generateSubPeriods = () => {
     const labels = [];
-    for (let i = 0; i < 4; i++) {
-      labels.push(getMonthLabel(i));
+
+    if (timeframe === "week") {
+      const now = new Date();
+      const year = now.getFullYear();
+
+      const startOfYear = new Date(year, 0, 1);
+      const today = new Date();
+
+      let currentStart = new Date(startOfYear);
+      let weekIndex = 1;
+
+      while (currentStart <= today) {
+        let currentEnd = new Date(currentStart);
+
+        // Week 1 special (partial week until Saturday)
+        if (weekIndex === 1) {
+          const day = currentStart.getDay(); // 0=Sun, 4=Thu
+          const daysToSaturday = (6 - day + 7) % 7;
+          currentEnd.setDate(currentStart.getDate() + daysToSaturday);
+        } else {
+          currentEnd.setDate(currentStart.getDate() + 6);
+        }
+
+        // Don't go beyond today
+        if (currentEnd > today) {
+          currentEnd = today;
+        }
+
+        const formatDate = (date) =>
+          date.toLocaleDateString("en-GB", {
+            day: "numeric",
+            month: "short",
+          });
+
+        labels.push(
+          `Week ${weekIndex}\n${formatDate(currentStart)} - ${formatDate(currentEnd)}`
+        );
+
+        // Move to next week
+        currentStart = new Date(currentEnd);
+        currentStart.setDate(currentStart.getDate() + 1);
+
+        weekIndex++;
+      }
     }
+
+    else if (timeframe === "month") {
+      for (let i = 0; i < 4; i++) {
+        labels.push(getMonthLabel(i));
+      }
+    }
+
+    else if (timeframe === "year") {
+      const now = new Date();
+      labels.push(`${now.getFullYear()}`);
+    }
+
     setSubPeriodsList(labels);
     setSubPeriod(0);
   };
@@ -112,47 +166,168 @@ export default function ChartScreen() {
     if (!expenses.length) return;
 
     const now = new Date();
-    const month = now.getMonth() - subPeriod;
+    const selectedMonth = new Date(
+      now.getFullYear(),
+      now.getMonth() - subPeriod,
+      1
+    );
 
-    const filtered = expenses.filter((item) => {
-      const date = new Date(item.date);
-      return (
-        date.getMonth() === month &&
-        date.getFullYear() === now.getFullYear()
-      );
-    });
+    let chartData = [];
 
-    const categoryMap = {};
+    // =========================
+    // 🟦 MONTH (UNCHANGED LOGIC)
+    // =========================
+    if (timeframe === "month") {
+      const filtered = expenses.filter((item) => {
+        const date = new Date(item.date);
+        return (
+          date.getMonth() === selectedMonth.getMonth() &&
+          date.getFullYear() === selectedMonth.getFullYear()
+        );
+      });
 
-    filtered.forEach((item) => {
-      const key =
-        typeof item.category === "object"
-          ? String(
-              item.category.id ??
-              item.category._id ??
-              item.category.name
-            )
-          : String(item.category);
+      const categoryMap = {};
 
-      if (!categoryMap[key]) categoryMap[key] = 0;
-      categoryMap[key] += item.amount;
-    });
+      filtered.forEach((item) => {
+        const key =
+          typeof item.category === "object"
+            ? String(
+                item.category.id ??
+                item.category._id ??
+                item.category.name
+              )
+            : String(item.category);
 
-    const chartData = Object.keys(categoryMap).map((cat, index) => {
-      const resolved = resolveCategory(cat, expenseCategories);
+        if (!categoryMap[key]) categoryMap[key] = 0;
+        categoryMap[key] += item.amount;
+      });
 
-      return {
-        key: cat,
-        name: resolved?.name || resolved?.category_name || "Unknown Category",
-        icon: resolved?.icon || "help-circle",
-        population: categoryMap[cat],
-        color: colors[index % colors.length],
+      chartData = Object.keys(categoryMap).map((cat, index) => {
+        const resolved = resolveCategory(cat, expenseCategories);
+
+        return {
+          key: cat,
+          name:
+            resolved?.name ||
+            resolved?.category_name ||
+            "Unknown Category",
+          population: categoryMap[cat],
+          color: colors[index % colors.length],
+        };
+      });
+    }
+
+    // =========================
+    // 🟩 WEEK (NEW)
+    // =========================
+    else if (timeframe === "week") {
+      const label = subPeriodsList?.[subPeriod];
+
+      if (!label || typeof label !== "string") return;
+
+      const parts = label.split("\n");
+
+      if (!parts[1]) return; // extra safety
+      const dateRange = parts[1]; // "1 Jan - 3 Jan"
+
+      const [startStr, endStr] = dateRange.split(" - ");
+
+      const year = new Date().getFullYear();
+
+      const parseDate = (str) => {
+        const [day, monthStr] = str.split(" ");
+
+        const months = {
+          Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+          Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
+        };
+
+        return new Date(year, months[monthStr], Number(day));
       };
-    });
+
+      const startDate = parseDate(startStr);
+      const endDate = parseDate(endStr);
+
+      const filtered = expenses.filter((item) => {
+        const date = new Date(item.date);
+        return date >= startDate && date <= endDate;
+      });
+
+      const categoryMap = {};
+
+      filtered.forEach((item) => {
+        const key =
+          typeof item.category === "object"
+            ? String(
+                item.category.id ??
+                item.category._id ??
+                item.category.name
+              )
+            : String(item.category);
+
+        if (!categoryMap[key]) categoryMap[key] = 0;
+        categoryMap[key] += item.amount;
+      });
+
+      chartData = Object.keys(categoryMap).map((cat, index) => {
+        const resolved = resolveCategory(cat, expenseCategories);
+
+        return {
+          key: cat,
+          name:
+            resolved?.name ||
+            resolved?.category_name ||
+            "Unknown Category",
+          population: categoryMap[cat],
+          color: colors[index % colors.length],
+        };
+      });
+    }
+
+    // =========================
+    // 🟨 YEAR (NEW)
+    // =========================
+    else if (timeframe === "year") {
+      const categoryMap = {};
+
+      const filtered = expenses.filter((item) => {
+        const date = new Date(item.date);
+        return date.getFullYear() === now.getFullYear();
+      });
+
+      filtered.forEach((item) => {
+        const key =
+          typeof item.category === "object"
+            ? String(
+                item.category.id ??
+                item.category._id ??
+                item.category.name
+              )
+            : String(item.category);
+
+        if (!categoryMap[key]) categoryMap[key] = 0;
+        categoryMap[key] += item.amount;
+      });
+
+      chartData = Object.keys(categoryMap).map((cat, index) => {
+        const resolved = resolveCategory(cat, expenseCategories);
+
+        return {
+          key: cat,
+          name:
+            resolved?.name ||
+            resolved?.category_name ||
+            "Unknown Category",
+          population: categoryMap[cat],
+          color: colors[index % colors.length],
+        };
+      });
+    }
 
     setCategoryData(chartData);
 
-  }, [expenses, expenseCategories, subPeriod]);
+  }, [expenses, expenseCategories, subPeriod, timeframe]);
+
 
   const totalAmount = categoryData.reduce(
     (sum, item) => sum + item.population,
@@ -189,25 +364,73 @@ export default function ChartScreen() {
 
           {/* SUB BAR */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {subPeriodsList.map((label, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.subButton,
-                  subPeriod === index && styles.activeSubButton,
-                ]}
-                onPress={() => setSubPeriod(index)}
-              >
-                <Text
+            {subPeriodsList.map((label, index) => {
+
+              // 🟩 WEEK MODE (2 LINES)
+              if (timeframe === "week") {
+              if (!label || typeof label !== "string") return null;
+
+              const parts = label.split("\n");
+              const weekTitle = parts[0] || "";
+              const weekDate = parts[1] || "";
+
+              return (
+                <TouchableOpacity
+                  key={index}
                   style={[
-                    styles.subButtonText,
-                    subPeriod === index && styles.activeSubText,
+                    styles.subButton,
+                    styles.weekButton,
+                    subPeriod === index && styles.activeSubButton,
                   ]}
+                  onPress={() => setSubPeriod(index)}
                 >
-                  {label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text style={{ textAlign: "center" }}>
+                    <Text
+                      style={[
+                        styles.subButtonText,
+                        subPeriod === index && styles.activeSubText,
+                      ]}
+                    >
+                      {weekTitle}
+                    </Text>
+
+                    {"\n"}
+
+                    <Text
+                      style={[
+                        styles.subDateText,
+                        subPeriod === index && styles.activeSubDateText,
+                      ]}
+                    >
+                      {weekDate}
+                    </Text>
+                  </Text>
+                </TouchableOpacity>
+              );
+            }
+
+              // 🟦 MONTH / 🟨 YEAR (SIMPLE 1 LINE)
+              return (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.subButton,
+                    styles.simpleButton, // 👈 smaller style
+                    subPeriod === index && styles.activeSubButton,
+                  ]}
+                  onPress={() => setSubPeriod(index)}
+                >
+                  <Text
+                    style={[
+                      styles.subButtonText,
+                      subPeriod === index && styles.activeSubText,
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
 
           {!user && (
@@ -335,6 +558,14 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
 
+  weekButton: {
+    paddingVertical: 6, // slightly taller for 2 lines
+  },
+
+  simpleButton: {
+    paddingVertical: 4, // smaller height (fix your issue)
+  },
+
   activeSubButton: {
     backgroundColor: "#007AFF",
   },
@@ -342,6 +573,15 @@ const styles = StyleSheet.create({
   subButtonText: {
     color: "#007AFF",
     fontSize: 13,
+  },
+
+  subDateText: {
+    fontSize: 10,
+    color: "#999", // soft grey
+  },
+
+  activeSubDateText: {
+    color: "#e0e0e0", // lighter when selected (on blue bg)
   },
 
   guestText: {
