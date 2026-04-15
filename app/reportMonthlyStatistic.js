@@ -3,6 +3,8 @@ import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
 import { useUser } from "../context/UserContext";
 import { getExpenses, getIncome } from "../api/expenseApi";
+import AppHeader from "../components/appHeader";
+import BackgroundWrapper from "../components/backgroundWrapper";
 
 export default function ReportMonthlyStatistic() {
   const { user } = useUser();
@@ -66,37 +68,76 @@ export default function ReportMonthlyStatistic() {
   }, [user]);
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Monthly Statistic</Text>
+      
+    <View style={{ flex: 1 }}>
+      
+      <AppHeader
+        title="Monthly Statistic"
+        backRoute="/drawer/tabs/report"
+      />
 
-      {loading ? (
-        <ActivityIndicator size="large" color="#007AFF" style={{ marginTop: 20 }} />
-      ) : (
-        monthlyData.map((monthData) => {
-          const monthName = new Date(monthData.year, monthData.month).toLocaleString(
-            "default",
-            { month: "long", year: "numeric" }
-          );
-          return (
-            <View key={`${monthData.year}-${monthData.month}`} style={styles.statsContainer}>
-              <Text style={styles.monthLabel}>{monthName}</Text>
-              <Text style={styles.statText}>Expenses: RM {monthData.expenses.toFixed(2)}</Text>
-              <Text style={styles.statText}>Income: RM {monthData.income.toFixed(2)}</Text>
-              <Text style={styles.statText}>Balance: RM {monthData.balance.toFixed(2)}</Text>
-            </View>
-          );
-        })
-      )}
-    </ScrollView>
+      <ScrollView style={styles.container}>
+        <BackgroundWrapper>
+
+          <View style={styles.contentContainer}>
+
+            {loading ? (
+              <ActivityIndicator
+                size="large"
+                color="#007AFF"
+                style={{ marginTop: 20 }}
+              />
+            ) : (
+              monthlyData.map((monthData) => {
+                const monthName = new Date(
+                  monthData.year,
+                  monthData.month
+                ).toLocaleString("default", {
+                  month: "long",
+                  year: "numeric",
+                });
+
+                return (
+                  <View
+                    key={`${monthData.year}-${monthData.month}`}
+                    style={styles.statsContainer}
+                  >
+                    <Text style={styles.monthLabel}>{monthName}</Text>
+                    <Text style={styles.statText}>
+                      Expenses: RM {monthData.expenses.toFixed(2)}
+                    </Text>
+                    <Text style={styles.statText}>
+                      Income: RM {monthData.income.toFixed(2)}
+                    </Text>
+                    <Text style={styles.statText}>
+                      Balance: RM {monthData.balance.toFixed(2)}
+                    </Text>
+                  </View>
+                );
+              })
+            )}
+
+          </View>
+
+        </BackgroundWrapper>
+      </ScrollView>
+
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20 },
-  title: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
+  container: { flex: 1 },
+  contentContainer: {
+    paddingTop: 80,
+  },
+
   statsContainer: {
     padding: 20,
-    backgroundColor: "#dde7ff",
+    backgroundColor: "#ffffff71",
+    borderWidth: 1,
+    borderColor: "rgb(182, 182, 182)",
+
     borderRadius: 10,
     marginBottom: 15,
   },

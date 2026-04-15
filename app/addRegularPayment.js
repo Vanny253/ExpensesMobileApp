@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -15,6 +15,13 @@ import { getCategories } from "../api/categoryApi";
 import { addRegularPayment } from "../api/regularPaymentApi";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Picker } from "@react-native-picker/picker";
+import { useLocalSearchParams } from "expo-router";
+import AppHeader from "../components/appHeader";
+import BackgroundWrapper from "../components/backgroundWrapper";
+import {
+  DEFAULT_EXPENSE_CATEGORIES,
+  DEFAULT_INCOME_CATEGORIES,
+} from "../components/defaultIcon";
 
 export default function RegularPaymentDetail() {
   const { user } = useUser();
@@ -28,32 +35,23 @@ export default function RegularPaymentDetail() {
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [amount, setAmount] = useState("");
+  const params = useLocalSearchParams();
 
-  // ✅ Combine defaults into ONE object
-  const DEFAULT_CATEGORIES = {
-    expense: [
-      { name: "Food", icon: "fast-food" },
-      { name: "Transport", icon: "car" },
-      { name: "Billing", icon: "receipt" },
-      { name: "Shopping", icon: "cart" },
-      { name: "Health", icon: "medkit" },
-      { name: "Entertainment", icon: "game-controller" },
-    ],
-    income: [
-      { name: "Salary", icon: "cash" },
-      { name: "Gift", icon: "gift" },
-      { name: "Investment", icon: "trending-up" },
-      { name: "Bonus", icon: "wallet" },
-      { name: "Freelance", icon: "laptop" },
-    ],
-  };
+  const payment = useMemo(() => {
+    try {
+      return params.payment ? JSON.parse(params.payment) : {};
+    } catch (e) {
+      return {};
+    }
+  }, [params.payment]);
+  
 
   const formatLocalDate = (date) => {
-  const year = date.getFullYear();
-  const month = (date.getMonth() + 1).toString().padStart(2, "0");
-  const day = date.getDate().toString().padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+    const day = date.getDate().toString().padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
 
   // Load categories
   const loadCategories = async () => {
@@ -65,10 +63,12 @@ export default function RegularPaymentDetail() {
       // Extract names from DB
       const userCategoryNames = userCategories.map((c) => c.name);
 
-      // Get default categories (objects)
-      const defaultCategories = DEFAULT_CATEGORIES[type] || [];
+      // ✅ USE IMPORTED DEFAULT ICONS
+      const defaultCategories =
+        type === "expense"
+          ? DEFAULT_EXPENSE_CATEGORIES
+          : DEFAULT_INCOME_CATEGORIES;
 
-      // Extract default names
       const defaultNames = defaultCategories.map((c) => c.name);
 
       // Merge without duplicates
@@ -94,7 +94,7 @@ export default function RegularPaymentDetail() {
   };
 
   const onDateChange = (event, selectedDate) => {
-    setShowDatePicker(false); // close after selecting
+    setShowDatePicker(false);
 
     if (selectedDate) {
       setDate(selectedDate);
@@ -132,103 +132,148 @@ export default function RegularPaymentDetail() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Add Regular Payment</Text>
+    <View style={styles.container}>
+      
+    
 
-      <TextInput
-        placeholder="Title"
-        style={styles.input}
-        value={title}
-        onChangeText={setTitle}
+      <AppHeader
+        title="Add Regular Payment"
+        backRoute="/drawer/regular_payment"
       />
+      
+      <BackgroundWrapper>  
 
-      <Text style={styles.label}>Type</Text>
-      <Picker
-        selectedValue={type}
-        onValueChange={(value) => {
-          setType(value);
-          setCategory(""); // reset
-        }}
-        style={styles.picker}
-      >
-        <Picker.Item label="Expense" value="expense" />
-        <Picker.Item label="Income" value="income" />
-      </Picker>
+        <View style={styles.formContainer}>
 
-      <Text style={styles.label}>Category</Text>
-      <Picker
-        selectedValue={category}
-        onValueChange={setCategory}
-        style={styles.picker}
-      >
-        {categories.map((cat) => (
-          <Picker.Item key={cat.id} label={cat.name} value={cat.name} />
-        ))}
-      </Picker>
-
-      <Text style={styles.label}>Frequency</Text>
-      <Picker
-        selectedValue={frequency}
-        onValueChange={setFrequency}
-        style={styles.picker}
-      >
-        <Picker.Item label="Daily" value="Daily" />
-        <Picker.Item label="Weekly" value="Weekly" />
-        <Picker.Item label="Monthly" value="Monthly" />
-        <Picker.Item label="Yearly" value="Yearly" />
-      </Picker>
-
-      <Text style={styles.label}>Start Date</Text>
-
-      <TouchableOpacity
-        style={styles.dateButton}
-        onPress={() => setShowDatePicker(true)}
-      >
-        <Text style={styles.dateText}>{date.toDateString()}</Text>
-      </TouchableOpacity>
-
-      {showDatePicker && (
-        <DateTimePicker
-          value={date}
-          mode="date"
-          display="default"
-          onChange={onDateChange}
+        <Text style={styles.label}>Title</Text>
+        <TextInput
+          placeholder="Title"
+          style={styles.input}
+          value={title}
+          onChangeText={setTitle}
         />
-      )}
+    
 
-      <TextInput
-        placeholder="Amount"
-        style={styles.input}
-        value={amount}
-        onChangeText={setAmount}
-        keyboardType="numeric"
-      />
+        <Text style={styles.label}>Type</Text>
+        <Picker
+          selectedValue={type}
+          onValueChange={(value) => {
+            setType(value);
+            setCategory("");
+          }}
+          style={styles.picker}
+        >
+          <Picker.Item label="Expense" value="expense" />
+          <Picker.Item label="Income" value="income" />
+        </Picker>
 
-      <Button title="Save Payment" onPress={handleAddPayment} />
-    </ScrollView>
+        <Text style={styles.label}>Category</Text>
+        <Picker
+          selectedValue={category}
+          onValueChange={setCategory}
+          style={styles.picker}
+        >
+          {categories.map((cat) => (
+            <Picker.Item key={cat.id} label={cat.name} value={cat.name} />
+          ))}
+        </Picker>
+
+        <Text style={styles.label}>Frequency</Text>
+        <Picker
+          selectedValue={frequency}
+          onValueChange={setFrequency}
+          style={styles.picker}
+        >
+          <Picker.Item label="Daily" value="Daily" />
+          <Picker.Item label="Weekly" value="Weekly" />
+          <Picker.Item label="Monthly" value="Monthly" />
+          <Picker.Item label="Yearly" value="Yearly" />
+        </Picker>
+
+        <Text style={styles.label}>Start Date</Text>
+
+        <TouchableOpacity
+          style={styles.dateButton}
+          onPress={() => setShowDatePicker(true)}
+        >
+          <Text style={styles.dateText}>{date.toDateString()}</Text>
+        </TouchableOpacity>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={date}
+            mode="date"
+            display="default"
+            onChange={onDateChange}
+          />
+        )}
+
+        <TextInput
+          placeholder="Amount"
+          style={styles.input}
+          value={amount}
+          onChangeText={setAmount}
+          keyboardType="numeric"
+        />
+
+        <TouchableOpacity
+          style={styles.saveButton}
+          onPress={handleAddPayment}
+        >
+          <Text style={styles.saveButtonText}>Save Payment</Text>
+        </TouchableOpacity>
+
+      </View>
+      </BackgroundWrapper>
+    </View>
+    
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20 },
-  title: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
+  container: { flex: 1 },
+  formContainer: {
+    flex: 1,
+    paddingTop: 100,
+  },
   input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
+    borderWidth: 1.5,
+    borderColor: "rgb(182, 182, 182)",
     padding: 10,
     borderRadius: 5,
     marginBottom: 15,
   },
-  label: { marginBottom: 5, fontWeight: "bold" },
-  picker: { marginBottom: 15 },
+  label: { 
+    marginBottom: 5, 
+    fontWeight: "bold" 
+  },
+  picker: { 
+    marginBottom: 15, 
+    backgroundColor: "#ffffff71", 
+    borderRadius: 5 },
+
   dateButton: {
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: "rgb(182, 182, 182)",
     padding: 12,
     borderRadius: 5,
+    backgroundColor: "#ffffff71",
     marginBottom: 15,
   },
   dateText: {
       fontSize: 16,
+  },
+  saveButton: {
+    backgroundColor: "#007AFF",
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 10,
+  },
+
+  saveButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

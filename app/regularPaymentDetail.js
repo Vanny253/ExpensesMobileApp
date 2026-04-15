@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -13,64 +13,87 @@ import {
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Picker } from "@react-native-picker/picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { updateRegularPayment, deleteRegularPayment } from "../api/regularPaymentApi";
+import {
+  updateRegularPayment,
+  deleteRegularPayment,
+} from "../api/regularPaymentApi";
 import { getCategories } from "../api/categoryApi";
+import AppHeader from "../components/appHeader";
+import BackgroundWrapper from "../components/backgroundWrapper";
+import {
+  DEFAULT_EXPENSE_CATEGORIES,
+  DEFAULT_INCOME_CATEGORIES,
+} from "../components/defaultIcon";
+
 
 export default function RegularPaymentDetail() {
   const router = useRouter();
   const params = useLocalSearchParams();
 
-  // Parse payment object
-  const payment = params.payment ? JSON.parse(params.payment) : {};
+  // ✅ FIX 1: memoized safe parsing
+  const payment = useMemo(() => {
+    try {
+      return params.payment ? JSON.parse(params.payment) : {};
+    } catch (e) {
+      console.error("Invalid payment data", e);
+      return {};
+    }
+  }, [params.payment]);
 
   // Editable fields
   const [title, setTitle] = useState(payment.title || "");
   const [type, setType] = useState(payment.type || "expense");
   const [category, setCategory] = useState(payment.category || "");
   const [categories, setCategories] = useState([]);
-  const [frequency, setFrequency] = useState(payment.frequency || "Monthly");
-  const [amount, setAmount] = useState(payment.amount ? payment.amount.toString() : "");
+  const [frequency, setFrequency] = useState(
+    payment.frequency || "Monthly"
+  );
+  const [amount, setAmount] = useState(
+    payment.amount ? payment.amount.toString() : ""
+  );
+
+  // ✅ FIX 2: safe date
+  const safeDate = payment.start_date
+    ? new Date(payment.start_date)
+    : new Date();
+
   const [startDate, setStartDate] = useState(
-    payment.start_date ? new Date(payment.start_date) : new Date()
+    isNaN(safeDate.getTime()) ? new Date() : safeDate
   );
 
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // Fetch categories from database + default ones
-  const DEFAULT_CATEGORIES = {
-    expense: [
-      { name: "Food" },
-      { name: "Transport" },
-      { name: "Billing" },
-      { name: "Shopping" },
-      { name: "Health" },
-      { name: "Entertainment" },
-    ],
-    income: [
-      { name: "Salary" },
-      { name: "Gift" },
-      { name: "Investment" },
-      { name: "Bonus" },
-      { name: "Freelance" },
-    ],
-  };
+  // ✅ prevent spam clicks
+  const [loading, setLoading] = useState(false);
+
+
 
   const loadCategories = async () => {
     try {
+      if (!payment.user_id) return;
+
       const dbCategories = await getCategories(payment.user_id, type);
       const dbNames = dbCategories.map((c) => c.name);
 
-      // Merge with defaults
-      const defaultNames = (DEFAULT_CATEGORIES[type] || []).map((c) => c.name);
+      const defaultSource =
+        type === "expense"
+          ? DEFAULT_EXPENSE_CATEGORIES
+          : DEFAULT_INCOME_CATEGORIES;
+
+      const defaultNames = defaultSource.map((c) => c.name);
+
       const mergedNames = [
         ...defaultNames,
         ...dbNames.filter((n) => !defaultNames.includes(n)),
       ];
 
-      const finalCategories = mergedNames.map((name, idx) => ({ id: idx, name }));
+      const finalCategories = mergedNames.map((name, idx) => ({
+        id: idx,
+        name,
+      }));
+
       setCategories(finalCategories);
 
-      // Keep original category selected if exists
       if (payment.category) {
         setCategory(payment.category);
       } else if (finalCategories.length > 0) {
@@ -82,9 +105,10 @@ export default function RegularPaymentDetail() {
     }
   };
 
+  // ✅ FIX 3: stable dependency
   useEffect(() => {
-    if (payment.user_id) loadCategories();
-  }, [payment.user_id, type]);
+    loadCategories();
+  }, [type]);
 
   const formatDate = (date) => {
     const d = new Date(date);
@@ -99,29 +123,57 @@ export default function RegularPaymentDetail() {
   };
 
   const handleUpdate = async () => {
+    if (loading) return;
+
     if (!title || !category || !frequency || !amount) {
       Alert.alert("Error", "Please fill in all fields");
       return;
     }
 
+    const parsedAmount = parseFloat(amount);
+
+    if (isNaN(parsedAmount)) {
+      Alert.alert("Error", "Invalid amount");
+      return;
+    }
+
     try {
-      await updateRegularPayment(Number(payment.id), {
+      setLoading(true);
+
+      const localDate = new Date(startDate);
+      localDate.setHours(12, 0, 0, 0);
+
+      const id = Number(payment?.id);
+
+      if (!id) {
+        Alert.alert("Error", "Invalid payment ID");
+        return;
+      }
+
+      // ✅ FIX: ACTUAL API CALL (THIS WAS MISSING)
+      await updateRegularPayment(id, {
         title,
         type,
         category,
         frequency,
-        start_date: formatDate(startDate),
-        amount: parseFloat(amount),
+        start_date: formatDate(localDate),
+        amount: parsedAmount,
       });
+
       Alert.alert("Success", "Payment updated successfully");
-      router.back();
+      router.replace("/drawer/regular_payment");
+
     } catch (err) {
       console.error(err);
       Alert.alert("Error", "Failed to update payment");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDelete = async () => {
+    if (loading) return;
+
     Alert.alert(
       "Confirm Delete",
       "Are you sure you want to delete this payment?",
@@ -132,12 +184,17 @@ export default function RegularPaymentDetail() {
           style: "destructive",
           onPress: async () => {
             try {
+              setLoading(true);
+
               await deleteRegularPayment(Number(payment.id));
+
               Alert.alert("Deleted", "Payment deleted successfully");
-              router.back();
+              router.replace("/drawer/regular_payment");
             } catch (err) {
               console.error(err);
               Alert.alert("Error", "Failed to delete payment");
+            } finally {
+              setLoading(false);
             }
           },
         },
@@ -147,99 +204,146 @@ export default function RegularPaymentDetail() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.header}>Regular Payment Details</Text>
-
-      <Text style={styles.label}>Title</Text>
-      <TextInput style={styles.input} value={title} onChangeText={setTitle} />
-
-      <Text style={styles.label}>Type</Text>
-      <Picker
-        selectedValue={type}
-        onValueChange={(val) => {
-          setType(val);
-          setCategory(""); // reset category on type change
-        }}
-        style={styles.picker}
-      >
-        <Picker.Item label="Expense" value="expense" />
-        <Picker.Item label="Income" value="income" />
-      </Picker>
-
-      <Text style={styles.label}>Category</Text>
-      <Picker
-        selectedValue={category}
-        onValueChange={(val) => setCategory(val)}
-        style={styles.picker}
-      >
-        {categories.map((c) => (
-          <Picker.Item key={c.id} label={c.name} value={c.name} />
-        ))}
-      </Picker>
-
-      <Text style={styles.label}>Frequency</Text>
-      <Picker
-        selectedValue={frequency}
-        onValueChange={(val) => setFrequency(val)}
-        style={styles.picker}
-      >
-        <Picker.Item label="Daily" value="Daily" />
-        <Picker.Item label="Weekly" value="Weekly" />
-        <Picker.Item label="Monthly" value="Monthly" />
-        <Picker.Item label="Yearly" value="Yearly" />
-      </Picker>
-
-      <Text style={styles.label}>Start Date</Text>
-      <TouchableOpacity
-        style={styles.dateButton}
-        onPress={() => setShowDatePicker(true)}
-      >
-        <Text>{startDate.toDateString()}</Text>
-      </TouchableOpacity>
-
-      {showDatePicker && (
-        <DateTimePicker
-          value={startDate}
-          mode="date"
-          display="default"
-          onChange={onDateChange}
+        <AppHeader
+          title="Regular Payment Detail"
+          backRoute="/drawer/regular_payment"
         />
-      )}
+        <BackgroundWrapper>
 
-      <Text style={styles.label}>Amount</Text>
-      <TextInput
-        style={styles.input}
-        value={amount}
-        onChangeText={setAmount}
-        keyboardType="numeric"
-      />
+        <Text style={styles.label}>Title</Text>
+        <TextInput style={styles.input} value={title} onChangeText={setTitle} />
 
-      <Button title="Update Payment" onPress={handleUpdate} color="#007bff" />
-      <View style={{ height: 10 }} />
-      <Button title="Delete Payment" onPress={handleDelete} color="#ff3b30" />
+        <Text style={styles.label}>Type</Text>
+        <Picker
+          selectedValue={type}
+          onValueChange={(val) => {
+            setType(val);
+            setCategory("");
+          }}
+          style={styles.picker}
+        >
+          <Picker.Item label="Expense" value="expense" />
+          <Picker.Item label="Income" value="income" />
+        </Picker>
+
+        <Text style={styles.label}>Category</Text>
+        <Picker
+          selectedValue={category || categories[0]?.name}
+          onValueChange={(val) => setCategory(val)}
+          style={styles.picker}
+        >
+          {categories.map((c) => (
+            <Picker.Item key={c.id} label={c.name} value={c.name} />
+          ))}
+        </Picker>
+
+        <Text style={styles.label}>Frequency</Text>
+        <Picker
+          selectedValue={frequency}
+          onValueChange={(val) => setFrequency(val)}
+          style={styles.picker}
+        >
+          <Picker.Item label="Daily" value="Daily" />
+          <Picker.Item label="Weekly" value="Weekly" />
+          <Picker.Item label="Monthly" value="Monthly" />
+          <Picker.Item label="Yearly" value="Yearly" />
+        </Picker>
+
+        <Text style={styles.label}>Start Date</Text>
+        <TouchableOpacity
+          style={styles.dateButton}
+          onPress={() => setShowDatePicker(true)}
+        >
+          <Text>{startDate.toDateString()}</Text>
+        </TouchableOpacity>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={startDate}
+            mode="date"
+            display="default"
+            onChange={onDateChange}
+          />
+        )}
+
+        <Text style={styles.label}>Amount</Text>
+        <TextInput
+          style={styles.input}
+          value={amount}
+          onChangeText={setAmount}
+          keyboardType="numeric"
+        />
+        <View style={{ height: 20 }} />
+        <TouchableOpacity
+          style={[styles.button, loading && styles.disabledButton]}
+          onPress={handleUpdate}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? "Updating..." : "Update Payment"}
+          </Text>
+        </TouchableOpacity>
+
+        <View style={{ height: 10 }} />
+
+        <TouchableOpacity
+          style={[styles.button, styles.deleteButton, loading && styles.disabledButton]}
+          onPress={handleDelete}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? "Deleting..." : "Delete Payment"}
+          </Text>
+        </TouchableOpacity>
+      </BackgroundWrapper>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20 },
-  header: { fontSize: 22, fontWeight: "bold", marginBottom: 20 },
+  container: {
+    flex: 1,
+    paddingTop: 80,
+  },
   label: { marginTop: 10, marginBottom: 5, fontWeight: "bold" },
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: "rgb(182, 182, 182)",
     padding: 10,
     borderRadius: 5,
   },
   picker: {
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: "rgb(182, 182, 182)",
+    backgroundColor: "#ffffff71",
     marginBottom: 15,
   },
   dateButton: {
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: "rgb(182, 182, 182)",
     padding: 12,
     borderRadius: 5,
     marginBottom: 15,
   },
+
+  button: {
+    backgroundColor: "#007AFF",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+
+  deleteButton: {
+    backgroundColor: "#ff3b30",
+  },
+
+  buttonText: {
+    color: "#fff",
+    fontWeight: "600",
+  },
+
+  disabledButton: {
+    opacity: 0.5,
+  },
+
 });

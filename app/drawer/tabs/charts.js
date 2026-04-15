@@ -364,10 +364,13 @@ export default function ChartScreen() {
 
           {/* SUB BAR */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {subPeriodsList.map((label, index) => {
+          {[...subPeriodsList].reverse().map((label, i) => {
+            
+            // ✅ FIX: map UI index → real index
+            const realIndex = subPeriodsList.length - 1 - i;
 
-              // 🟩 WEEK MODE (2 LINES)
-              if (timeframe === "week") {
+            // 🟩 WEEK MODE
+            if (timeframe === "week") {
               if (!label || typeof label !== "string") return null;
 
               const parts = label.split("\n");
@@ -376,19 +379,19 @@ export default function ChartScreen() {
 
               return (
                 <TouchableOpacity
-                  key={index}
+                  key={realIndex}
                   style={[
                     styles.subButton,
                     styles.weekButton,
-                    subPeriod === index && styles.activeSubButton,
+                    subPeriod === realIndex && styles.activeSubButton,
                   ]}
-                  onPress={() => setSubPeriod(index)}
+                  onPress={() => setSubPeriod(realIndex)}
                 >
                   <Text style={{ textAlign: "center" }}>
                     <Text
                       style={[
                         styles.subButtonText,
-                        subPeriod === index && styles.activeSubText,
+                        subPeriod === realIndex && styles.activeSubText,
                       ]}
                     >
                       {weekTitle}
@@ -399,7 +402,7 @@ export default function ChartScreen() {
                     <Text
                       style={[
                         styles.subDateText,
-                        subPeriod === index && styles.activeSubDateText,
+                        subPeriod === realIndex && styles.activeSubDateText,
                       ]}
                     >
                       {weekDate}
@@ -409,29 +412,29 @@ export default function ChartScreen() {
               );
             }
 
-              // 🟦 MONTH / 🟨 YEAR (SIMPLE 1 LINE)
-              return (
-                <TouchableOpacity
-                  key={index}
+            // 🟦 MONTH / 🟨 YEAR
+            return (
+              <TouchableOpacity
+                key={realIndex}
+                style={[
+                  styles.subButton,
+                  styles.simpleButton,
+                  subPeriod === realIndex && styles.activeSubButton,
+                ]}
+                onPress={() => setSubPeriod(realIndex)}
+              >
+                <Text
                   style={[
-                    styles.subButton,
-                    styles.simpleButton, // 👈 smaller style
-                    subPeriod === index && styles.activeSubButton,
+                    styles.subButtonText,
+                    subPeriod === realIndex && styles.activeSubText,
                   ]}
-                  onPress={() => setSubPeriod(index)}
                 >
-                  <Text
-                    style={[
-                      styles.subButtonText,
-                      subPeriod === index && styles.activeSubText,
-                    ]}
-                  >
-                    {label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
 
           {!user && (
             <Text style={styles.guestText}>

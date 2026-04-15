@@ -13,6 +13,8 @@ import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useUser } from "../../context/UserContext";
 import { addCategory } from "../../api/categoryApi";
+import AppHeader from "../../components/appHeader";
+import BackgroundWrapper from "../../components/backgroundWrapper";
 
 // 🔥 ICON OPTIONS (you can add more anytime)
 const ICON_OPTIONS = [
@@ -70,8 +72,15 @@ export default function AddCategoryScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Create Category</Text>
 
+      <AppHeader
+        title="Create New Category"
+        backRoute="/drawer/category"
+      />
+
+      <BackgroundWrapper>
+
+  
       {/* TYPE */}
       <Text style={styles.label}>Category Type</Text>
       <Text style={styles.type}>{type}</Text>
@@ -114,19 +123,25 @@ export default function AddCategoryScreen() {
         }}
       />
 
-      {/* SAVE BUTTON */}
-      <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-        <Ionicons name="checkmark-circle" size={20} color="white" />
-        <Text style={styles.saveText}>Save Category</Text>
-      </TouchableOpacity>
+      {/* BUTTON GROUP */}
+      <View style={styles.buttonContainer}>
 
-      {/* CANCEL */}
-      <TouchableOpacity
-        style={styles.cancelButton}
-        onPress={() => router.back()}
-      >
-        <Text style={styles.cancelText}>Cancel</Text>
-      </TouchableOpacity>
+        {/* SAVE BUTTON */}
+        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+          <Ionicons name="checkmark-circle" size={20} color="white" />
+          <Text style={styles.saveText}>Save Category</Text>
+        </TouchableOpacity>
+
+        {/* CANCEL */}
+        <TouchableOpacity
+          style={styles.cancelButton}
+          onPress={() => router.push("/drawer/category")}
+        >
+          <Text style={styles.cancelText}>Cancel</Text>
+        </TouchableOpacity>
+
+      </View>
+      </BackgroundWrapper>
     </SafeAreaView>
   );
 }
@@ -134,7 +149,7 @@ export default function AddCategoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    paddingTop: 50,
   },
 
   title: {
@@ -155,8 +170,8 @@ const styles = StyleSheet.create({
   },
 
   input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
+    borderWidth: 1.5,
+    borderColor: "rgb(182, 182, 182)",
     borderRadius: 8,
     padding: 10,
     marginTop: 5,
@@ -172,11 +187,11 @@ const styles = StyleSheet.create({
     margin: 5,
     padding: 12,
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#ddd",
+    borderWidth: 1.5,
+    borderColor: "rgb(182, 182, 182)",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#fafafa",
+    backgroundColor: "#ffffff71",
   },
 
   iconBoxSelected: {
@@ -184,12 +199,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#eaf3ff",
   },
 
+  buttonContainer: {
+    marginBottom: 50,
+    alignItems: "center",
+  },
+
   saveButton: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#007AFF",
-    padding: 12,
+    padding: 15,
+    paddingLeft: 50,
+    paddingRight: 50,
     borderRadius: 8,
     marginTop: 20,
   },

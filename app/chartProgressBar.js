@@ -14,6 +14,7 @@ import { getExpenses, getIncome } from "../api/expenseApi";
 import BackgroundWrapper from "../components/backgroundWrapper";
 import { DEFAULT_EXPENSE_CATEGORIES } from "../components/defaultIcon";
 import { useUser } from "../context/UserContext";
+import AppHeader from "../components/appHeader";
 
 export default function ChartProgressBar() {
   const { user } = useUser();
@@ -193,25 +194,10 @@ export default function ChartProgressBar() {
   return (
     <View style={styles.container}>
 
-      {/* HEADER */}
-      <View style={styles.headerWrapper}>
-        <View style={styles.header}>
-          <Ionicons
-            name="arrow-back"
-            size={24}
-            color="#000"
-            onPress={() =>
-              router.replace("/drawer/tabs/charts")
-            }
-          />
-
-          <Text style={styles.headerTitle}>
-            Progress Bar Detail
-          </Text>
-
-          <View style={{ width: 24 }} />
-        </View>
-      </View>
+      <AppHeader
+          title="Regular Payment Detail"
+          backRoute="/drawer/tabs/charts"
+        />
 
       <BackgroundWrapper>
         <View style={styles.contentPadding}>
@@ -279,7 +265,9 @@ export default function ChartProgressBar() {
 
 // -----------------------------
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { 
+    flex: 1,
+   },
 
   center: {
     flex: 1,
@@ -287,28 +275,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  headerWrapper: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 9999,
-  },
-
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#a3d2fe",
-    paddingTop: 50,
-    paddingBottom: 15,
-    paddingHorizontal: 20,
-    justifyContent: "space-between",
-  },
-
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
+  
 
   contentPadding: {
     flex: 1,

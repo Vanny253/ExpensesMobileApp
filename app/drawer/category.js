@@ -12,6 +12,7 @@ import BottomTabs from "../../components/_BottomTabs";
 import { useUser } from "../../context/UserContext";
 import { getCategories } from "../../api/categoryApi";
 import { router, useFocusEffect } from "expo-router";
+import BackgroundWrapper from "../../components/backgroundWrapper";
 import {
   DEFAULT_EXPENSE_CATEGORIES,
   DEFAULT_INCOME_CATEGORIES,
@@ -105,110 +106,115 @@ export default function CategoryScreen() {
   /* ---------------- UI ---------------- */
   if (!user) {
     return (
-      <View style={{ flex: 1 }}>
-        <View style={styles.guestContainer}>
-          <Text style={styles.guestText}>
-            Guest Mode: Please login to manage categories.
-          </Text>
+      <BackgroundWrapper>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <View style={styles.guestContainer}>
+            <Text style={styles.guestText}>
+              Guest Mode: Please login to manage categories.
+            </Text>
+          </View>
         </View>
+
         <BottomTabs />
-      </View>
+      </BackgroundWrapper>
     );
   }
 
   return (
-    <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <Text style={styles.title}>Manage Categories</Text>
+    <BackgroundWrapper>
+      <View style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
+          <Text style={styles.title}>Manage Categories</Text>
 
-        {/* TYPE TOGGLE */}
-        <View style={styles.typeContainer}>
-          <TouchableOpacity
-            style={[styles.typeButton, type === "expense" && styles.activeType]}
-            onPress={() => setType("expense")}
-          >
-            <Text style={type === "expense" && styles.activeText}>
-              Expense
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.typeButton, type === "income" && styles.activeType]}
-            onPress={() => setType("income")}
-          >
-            <Text style={type === "income" && styles.activeText}>
-              Income
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.subtitle}>Categories</Text>
-
-        {/* ACTIVE */}
-        <View style={styles.listContainer}>
-          {visibleCategories.map((cat, index) => (
-            <View key={index} style={styles.listItem}>
-              <TouchableOpacity onPress={() => toggleCategory(cat)}>
-                <Ionicons name="remove-circle" size={20} color="#FF3B30" />
-              </TouchableOpacity>
-
-              <Ionicons name={cat.icon} size={22} color="#007AFF" />
-
-              <Text style={styles.listText}>{cat.name}</Text>
-
-              {!isDefaultCategory(cat) && (
-                <TouchableOpacity
-                  onPress={() =>
-                    router.push({
-                      pathname: "/category/updateCategory",
-                      params: {
-                        id: cat.id,
-                        name: cat.name,
-                        icon: cat.icon,
-                        type,
-                      },
-                    })
-                  }
-                >
-                  <Ionicons name="chevron-forward" size={18} color="#999" />
-                </TouchableOpacity>
-              )}
-            </View>
-          ))}
-
-          {/* REMOVED */}
-          {removedCategories.map((cat, index) => (
-            <View key={`removed-${index}`} style={styles.listItem}>
-              <TouchableOpacity onPress={() => toggleCategory(cat)}>
-                <Ionicons name="add-circle" size={20} color="#28a745" />
-              </TouchableOpacity>
-
-              <Ionicons name={cat.icon} size={22} color="#aaa" />
-
-              <Text style={[styles.listText, { color: "#aaa" }]}>
-                {cat.name}
+          {/* TYPE TOGGLE */}
+          <View style={styles.typeContainer}>
+            <TouchableOpacity
+              style={[styles.typeButton, type === "expense" && styles.activeType]}
+              onPress={() => setType("expense")}
+            >
+              <Text style={type === "expense" && styles.activeText}>
+                Expense
               </Text>
-            </View>
-          ))}
+            </TouchableOpacity>
 
-          {/* ADD */}
-          <TouchableOpacity
-            style={styles.listItem}
-            onPress={() =>
-              router.push({
-                pathname: "/category/addCategory",
-                params: { type },
-              })
-            }
-          >
-            <Ionicons name="add-circle" size={22} color="#28a745" />
-            <Text style={styles.listText}>Add Category</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+            <TouchableOpacity
+              style={[styles.typeButton, type === "income" && styles.activeType]}
+              onPress={() => setType("income")}
+            >
+              <Text style={type === "income" && styles.activeText}>
+                Income
+              </Text>
+            </TouchableOpacity>
+          </View>
 
-      <BottomTabs />
-    </View>
+          <Text style={styles.subtitle}>Categories</Text>
+
+          {/* ACTIVE */}
+          <View style={styles.listContainer}>
+            {visibleCategories.map((cat, index) => (
+              <View key={index} style={styles.listItem}>
+                <TouchableOpacity onPress={() => toggleCategory(cat)}>
+                  <Ionicons name="remove-circle" size={20} color="#FF3B30" style={{ paddingRight: 10 }} />
+                </TouchableOpacity>
+
+                <Ionicons name={cat.icon} size={22} color="#007AFF" />
+
+                <Text style={styles.listText}>{cat.name}</Text>
+
+                {!isDefaultCategory(cat) && (
+                  <TouchableOpacity
+                    onPress={() =>
+                      router.push({
+                        pathname: "/category/updateCategory",
+                        params: {
+                          id: cat.id,
+                          name: cat.name,
+                          icon: cat.icon,
+                          type,
+                        },
+                      })
+                    }
+                  >
+                    <Ionicons name="create-outline" size={18} color="#887878" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
+
+            {/* REMOVED */}
+            {removedCategories.map((cat, index) => (
+              <View key={`removed-${index}`} style={styles.listItem}>
+                <TouchableOpacity onPress={() => toggleCategory(cat)}>
+                  <Ionicons name="add-circle" size={20} color="#28a745" />
+                </TouchableOpacity>
+
+                <Ionicons name={cat.icon} size={22} color="#887878" />
+
+                <Text style={[styles.listText, { color: "#887878" }]}>
+                  {cat.name}
+                </Text>
+              </View>
+            ))}
+
+            {/* ADD */}
+            <TouchableOpacity
+              style={styles.listItem}
+              onPress={() =>
+                router.push({
+                  pathname: "/category/addCategory",
+                  params: { type },
+                })
+              }
+            >
+              <Ionicons name="add-circle" size={22} color="#28a745" />
+              <Text style={styles.listText}>Add Category</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+
+        <BottomTabs />
+      </View>
+    </BackgroundWrapper>
   );
 }
 
@@ -241,7 +247,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: "#007AFF",
   },
 
   listText: {

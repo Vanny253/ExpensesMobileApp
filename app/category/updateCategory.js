@@ -12,6 +12,8 @@ import { useLocalSearchParams, router } from "expo-router";
 import axios from "axios";
 import API_URL from "../../api/config";
 import { Ionicons } from "@expo/vector-icons";
+import AppHeader from "../../components/appHeader";
+import BackgroundWrapper from "../../components/backgroundWrapper";
 
 import {
   DEFAULT_EXPENSE_CATEGORIES,
@@ -98,46 +100,65 @@ export default function UpdateCategory() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Update Category</Text>
 
-      {/* NAME */}
-      <TextInput
-        value={categoryName}
-        onChangeText={setCategoryName}
-        style={styles.input}
-        placeholder="Category name"
+      <AppHeader
+        title="Update Category"
+        backRoute="/drawer/category"
       />
 
-      {/* ICON PICKER */}
-      <Text style={styles.label}>Choose Icon</Text>
+      <BackgroundWrapper>
 
-      <FlatList
-        data={ICON_OPTIONS}
-        keyExtractor={(item) => item}
-        numColumns={5}
-        contentContainerStyle={styles.iconGrid}
-        renderItem={({ item }) => {
-          const isSelected = selectedIcon === item;
+        <Text style={styles.title}>Update the Category name here:</Text>
 
-          return (
-            <TouchableOpacity
-              style={[styles.iconBox, isSelected && styles.iconBoxSelected]}
-              onPress={() => setSelectedIcon(item)}
-            >
-              <Ionicons
-                name={item}
-                size={26}
-                color={isSelected ? "#007AFF" : "#555"}
-              />
-            </TouchableOpacity>
-          );
-        }}
-      />
+        {/* NAME */}
+        <TextInput
+          value={categoryName}
+          onChangeText={setCategoryName}
+          style={styles.input}
+          placeholder="Category name"
+        />
 
-      {/* SAVE */}
-      <TouchableOpacity style={styles.saveBtn} onPress={updateCategory}>
-        <Text style={styles.btnText}>Save Changes</Text>
-      </TouchableOpacity>
+        {/* ICON PICKER */}
+        <Text style={styles.label}>Choose Icon</Text>
+
+        <FlatList
+          data={ICON_OPTIONS}
+          keyExtractor={(item) => item}
+          numColumns={5}
+          contentContainerStyle={styles.iconGrid}
+          renderItem={({ item }) => {
+            const isSelected = selectedIcon === item;
+
+            return (
+              <TouchableOpacity
+                style={[styles.iconBox, isSelected && styles.iconBoxSelected]}
+                onPress={() => setSelectedIcon(item)}
+              >
+                <Ionicons
+                  name={item}
+                  size={26}
+                  color={isSelected ? "#007AFF" : "#555"}
+                />
+              </TouchableOpacity>
+            );
+          }}
+        />
+
+        {/* SAVE */}
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity style={styles.saveBtn} onPress={updateCategory}>
+            <Text style={styles.btnText}>Save Changes</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => router.push("/drawer/category")}
+          >
+            <Text style={styles.cancelText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </BackgroundWrapper>
+
     </View>
   );
 }
@@ -146,25 +167,23 @@ export default function UpdateCategory() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: "#fff",
+    paddingTop: 80,
   },
 
   title: {
-    fontSize: 22,
+    fontSize: 15,
     fontWeight: "bold",
-    marginBottom: 15,
   },
 
   label: {
     fontSize: 16,
     marginTop: 10,
-    marginBottom: 5,
+    fontWeight: "bold",
   },
 
   input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
+    borderWidth: 1.5,
+    borderColor: "rgb(182, 182, 182)",
     padding: 10,
     borderRadius: 8,
   },
@@ -178,11 +197,11 @@ const styles = StyleSheet.create({
     margin: 5,
     padding: 12,
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#ddd",
+    borderWidth: 1.5,
+    borderColor: "rgb(182, 182, 182)",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#fafafa",
+    backgroundColor: "#ffffff71",
   },
 
   iconBoxSelected: {
@@ -192,9 +211,11 @@ const styles = StyleSheet.create({
 
   saveBtn: {
     backgroundColor: "#007AFF",
-    padding: 12,
+    padding: 15,
     borderRadius: 8,
     marginTop: 15,
+    paddingLeft: 50,
+    paddingRight: 50,
   },
 
   btnText: {
@@ -216,5 +237,20 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#666",
     marginBottom: 20,
+  },
+
+  buttonContainer: {
+    marginBottom: 80,
+    alignItems: "center",
+    
+  },
+
+  cancelButton: {
+    marginTop: 10,
+    alignItems: "center",
+  },
+
+  cancelText: {
+    color: "red",
   },
 });

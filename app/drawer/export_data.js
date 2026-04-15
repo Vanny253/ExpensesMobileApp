@@ -16,6 +16,7 @@ import * as XLSX from "xlsx";
 import { getExpenses, getIncome } from "../../api/expenseApi";
 import BottomTabs from "../../components/_BottomTabs";
 import { useUser } from "../../context/UserContext";
+import BackgroundWrapper from "../../components/backgroundWrapper";
 
 export default function ExportDataScreen() {
   const { user } = useUser();
@@ -26,7 +27,6 @@ export default function ExportDataScreen() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Fetch transactions for the selected date range
   const fetchTransactions = async () => {
     if (!user) return;
     setLoading(true);
@@ -41,27 +41,21 @@ export default function ExportDataScreen() {
         ...incomeData.map((i) => ({ ...i, type: "income" })),
       ];
 
-      // Filter by selected start and end date
       const filtered = allTransactions.filter((t) => {
-      const transactionDate = new Date(t.date);
+        const transactionDate = new Date(t.date);
 
-      // Normalize start date (00:00:00)
-      const start = new Date(startDate);
-      start.setHours(0, 0, 0, 0);
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
 
-      // Normalize end date (23:59:59)
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
 
-      return transactionDate >= start && transactionDate <= end;
-    });
+        return transactionDate >= start && transactionDate <= end;
+      });
 
-      // Sort latest first
       filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
-
       setTransactions(filtered);
     } catch (err) {
-      console.error("Failed to fetch transactions", err);
       Alert.alert("Error", "Failed to load transactions");
     } finally {
       setLoading(false);
@@ -72,7 +66,6 @@ export default function ExportDataScreen() {
     fetchTransactions();
   }, [user, startDate, endDate]);
 
-  // ---------------- HANDLE EXPORT ----------------
   const exportFile = async (format) => {
     if (!transactions.length) {
       Alert.alert("No data", "No transactions to export for selected dates.");
@@ -83,6 +76,7 @@ export default function ExportDataScreen() {
       const fileName = `Report_${startDate.toISOString().slice(0, 10)}_to_${endDate
         .toISOString()
         .slice(0, 10)}.${format === "excel" ? "xlsx" : format}`;
+
       let fileUri = FileSystem.documentDirectory + fileName;
 
       if (format === "csv") {
@@ -90,13 +84,20 @@ export default function ExportDataScreen() {
         transactions.forEach((t) => {
           csvContent += `${t.date},${t.title},${t.amount},${t.category},${t.type}\n`;
         });
-        await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: "utf8" });
+        await FileSystem.writeAsStringAsync(fileUri, csvContent, {
+          encoding: "utf8",
+        });
       } else if (format === "excel") {
         const ws = XLSX.utils.json_to_sheet(transactions);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Transactions");
-        const wbout = XLSX.write(wb, { type: "base64", bookType: "xlsx" });
-        await FileSystem.writeAsStringAsync(fileUri, wbout, { encoding: "base64" });
+        const wbout = XLSX.write(wb, {
+          type: "base64",
+          bookType: "xlsx",
+        });
+        await FileSystem.writeAsStringAsync(fileUri, wbout, {
+          encoding: "base64",
+        });
       } else if (format === "pdf") {
         const htmlContent = `
           <h1>Transactions Report</h1>
@@ -107,8 +108,8 @@ export default function ExportDataScreen() {
             </tr>
             ${transactions
               .map(
-                (t) =>
-                  `<tr>
+                (t) => `
+                  <tr>
                     <td>${t.date}</td>
                     <td>${t.title}</td>
                     <td>${t.amount}</td>
@@ -119,6 +120,7 @@ export default function ExportDataScreen() {
               .join("")}
           </table>
         `;
+
         const { uri } = await Print.printToFileAsync({ html: htmlContent });
         fileUri = uri;
       }
@@ -129,80 +131,114 @@ export default function ExportDataScreen() {
         Alert.alert("Exported", `File saved: ${fileUri}`);
       }
     } catch (err) {
-      console.error(err);
       Alert.alert("Error", "Failed to export file");
     }
   };
 
+    /* ---------------- GUEST MODE ---------------- */
+    if (!user) {
+      return (
+        <BackgroundWrapper>
+          <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+            <View style={styles.guestContainer}>
+              <Text style={styles.guestText}>
+                Guest Mode: Please login to export transactions.
+              </Text>
+            </View>
+          </View>
+
+          <BottomTabs />
+        </BackgroundWrapper>
+      );
+    }
+
   return (
+
+    
     <View style={{ flex: 1 }}>
-      <View style={styles.container}>
-        <Text style={styles.title}>Export Transactions</Text>
+      <BackgroundWrapper>
+        <View style={styles.container}>
 
-        {/* START DATE */}
-        <TouchableOpacity
-          style={styles.dateBox}
-          onPress={() => setShowStartPicker(true)}
-        >
-          <Text>Start Date: {startDate.toDateString()}</Text>
-        </TouchableOpacity>
-        {showStartPicker && (
-          <DateTimePicker
-            value={startDate}
-            mode="date"
-            display="default"
-            onChange={(event, selectedDate) => {
-              setShowStartPicker(false);
-              if (selectedDate) setStartDate(selectedDate);
-            }}
-          />
-        )}
+          <Text style={styles.title}>Export Transactions</Text>
 
-        {/* END DATE */}
-        <TouchableOpacity
-          style={styles.dateBox}
-          onPress={() => setShowEndPicker(true)}
-        >
-          <Text>End Date: {endDate.toDateString()}</Text>
-        </TouchableOpacity>
-        {showEndPicker && (
-          <DateTimePicker
-            value={endDate}
-            mode="date"
-            display="default"
-            onChange={(event, selectedDate) => {
-              setShowEndPicker(false);
-              if (selectedDate) setEndDate(selectedDate);
-            }}
-          />
-        )}
-
-        {/* EXPORT BUTTONS */}
-        <View style={{ marginTop: 20 }}>
+          {/* START DATE */}
           <TouchableOpacity
-            style={styles.exportBtn}
-            onPress={() => exportFile("pdf")}
+            style={styles.dateBox}
+            onPress={() => setShowStartPicker(true)}
           >
-            <Text style={styles.btnText}>Export PDF</Text>
+            <Text style={styles.dateText}>
+              Start Date: {startDate.toDateString()}
+            </Text>
           </TouchableOpacity>
 
+          {showStartPicker && (
+            <DateTimePicker
+              value={startDate}
+              mode="date"
+              display="default"
+              onChange={(event, selectedDate) => {
+                setShowStartPicker(false);
+                if (selectedDate) setStartDate(selectedDate);
+              }}
+            />
+          )}
+
+          {/* END DATE */}
           <TouchableOpacity
-            style={styles.exportBtn}
-            onPress={() => exportFile("excel")}
+            style={styles.dateBox}
+            onPress={() => setShowEndPicker(true)}
           >
-            <Text style={styles.btnText}>Export Excel</Text>
+            <Text style={styles.dateText}>
+              End Date: {endDate.toDateString()}
+            </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.exportBtn}
-            onPress={() => exportFile("csv")}
-          >
-            <Text style={styles.btnText}>Export CSV</Text>
-          </TouchableOpacity>
+          {showEndPicker && (
+            <DateTimePicker
+              value={endDate}
+              mode="date"
+              display="default"
+              onChange={(event, selectedDate) => {
+                setShowEndPicker(false);
+                if (selectedDate) setEndDate(selectedDate);
+              }}
+            />
+          )}
+
+          {/* EXPORT BUTTONS */}
+          <View style={{ marginTop: 20 }}>
+            <TouchableOpacity
+              style={styles.exportBtn}
+              onPress={() => exportFile("pdf")}
+            >
+              <Text style={styles.btnText}>Export PDF</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.exportBtn}
+              onPress={() => exportFile("excel")}
+            >
+              <Text style={styles.btnText}>Export Excel</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.exportBtn}
+              onPress={() => exportFile("csv")}
+            >
+              <Text style={styles.btnText}>Export CSV</Text>
+            </TouchableOpacity>
+          </View>
+
+          {loading && (
+            <ActivityIndicator
+              size="large"
+              color="#007AFF"
+              style={{ marginTop: 20 }}
+            />
+          )}
+
         </View>
-
-        {loading && <ActivityIndicator size="large" color="#007AFF" style={{ marginTop: 20 }} />}
-      </View>
+      </BackgroundWrapper>
 
       <BottomTabs />
     </View>
@@ -210,20 +246,58 @@ export default function ExportDataScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20 },
-  title: { fontSize: 22, fontWeight: "bold", marginBottom: 20 },
+  container: {
+    flex: 1,
+    padding: 20,
+    justifyContent: "center",
+  },
+
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 25,
+    textAlign: "center",
+    color: "#333",
+  },
+
   dateBox: {
     padding: 15,
     borderWidth: 1,
     borderRadius: 10,
     marginBottom: 15,
+    backgroundColor: "#ffffff71",
+    borderColor: "rgb(182,182,182)",
   },
+
+  dateText: {
+    fontSize: 16,
+    color: "#333",
+  },
+
   exportBtn: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: "#007AFF",
     padding: 15,
     borderRadius: 10,
     alignItems: "center",
     marginBottom: 10,
   },
-  btnText: { color: "white", fontWeight: "bold" },
+
+  btnText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+
+  guestContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+
+  guestText: {
+    textAlign: "center",
+    color: "#FF3B30",
+    fontSize: 16,
+  },
 });
