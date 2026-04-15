@@ -127,60 +127,84 @@ const TransactionForm = ({ type }) => {
 
   useFocusEffect(
     useCallback(() => {
-      // when screen comes into focus → reset everything
+      // reset form every time user enters screen
       setTitle("");
       setAmount("");
       setCategory("");
       setDate(new Date());
+
+      return () => {
+        // optional cleanup (safe)
+      };
     }, [])
   );
 
 
   useEffect(() => {
-    const scannedAmount = params.scannedAmount ?? params.amount;
-    const scannedDate = params.scannedDate ?? params.date;
-    const scannedTitle = params.scannedTitle ?? params.title;
+  const scannedAmount = params.scannedAmount ?? params.amount;
+  const scannedDate = params.scannedDate ?? params.date;
+  const scannedTitle = params.scannedTitle ?? params.title;
+  const scannedCategory = params.scannedCategory;
 
-    if (!scannedAmount && !scannedDate && !scannedTitle) return;
+  if (!scannedAmount && !scannedDate && !scannedTitle && !scannedCategory) return;
 
-    console.log("📥 SCANNED DATA RECEIVED:", {
-      scannedAmount,
-      scannedDate,
-      scannedTitle,
+  console.log("📥 SCANNED DATA RECEIVED:", {
+    scannedAmount,
+    scannedDate,
+    scannedTitle,
+    scannedCategory,
+  });
+
+  // 💰 AMOUNT
+  if (scannedAmount && String(scannedAmount) !== String(amount)) {
+    setAmount(String(scannedAmount));
+  }
+
+  // 📅 DATE
+  if (scannedDate) {
+    let parsedDate = null;
+
+    if (scannedDate.includes("/")) {
+      const [day, month, year] = scannedDate.split("/");
+      parsedDate = new Date(year, month - 1, day);
+    } else {
+      parsedDate = new Date(scannedDate);
+    }
+
+    if (
+      parsedDate &&
+      !isNaN(parsedDate.getTime()) &&
+      parsedDate.getTime() !== date.getTime()
+    ) {
+      setDate(parsedDate);
+    }
+  }
+
+  // 🏪 TITLE
+  if (scannedTitle && scannedTitle !== title) {
+    setTitle(scannedTitle);
+  }
+
+
+  // 🏷 CATEGORY AUTO SELECT (SAFE VERSION)
+  if (scannedCategory && categories.length > 0) {
+    const cleanAI = scannedCategory.toLowerCase().trim();
+
+    const matched = categories.find((c) => {
+      const dbName = (c.name || "").toLowerCase().trim();
+
+      return dbName === cleanAI;
     });
 
-    // 💰 AMOUNT
-    if (scannedAmount && String(scannedAmount) !== String(amount)) {
-      setAmount(String(scannedAmount));
+    if (matched) {
+      console.log("🏷 AUTO CATEGORY FOUND:", matched.name);
+      setCategory(matched.id);
+    } else {
+      console.log("🏷 CATEGORY NOT FOUND → user must select manually");
+      // DO NOTHING → keep dropdown empty
     }
-
-    // 📅 DATE
-    if (scannedDate) {
-      let parsedDate = null;
-
-      if (scannedDate.includes("/")) {
-        const [day, month, year] = scannedDate.split("/");
-        parsedDate = new Date(year, month - 1, day);
-      } else {
-        parsedDate = new Date(scannedDate);
-      }
-
-      if (
-        parsedDate &&
-        !isNaN(parsedDate.getTime()) &&
-        parsedDate.getTime() !== date.getTime()
-      ) {
-        setDate(parsedDate);
-      }
-    }
-
-    // 🏪 TITLE
-    if (scannedTitle && scannedTitle !== title) {
-      setTitle(scannedTitle);
-    }
-
-  }, [params]); // ✅ FIXED
-
+  }
+}, [params, categories]); // ✅ safe add categories
 
   useEffect(() => {
     const fetchCategories = async () => {

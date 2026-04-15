@@ -3,7 +3,7 @@ import { TouchableOpacity, View, Modal } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { DrawerActions } from "@react-navigation/native";
 import { useState } from "react";
-import Chatbot from "../../chatbot/chatbot";
+import Chatbot from "../../../components/Chatbot";
 
 export default function TabsLayout() {
   const navigation = useNavigation();

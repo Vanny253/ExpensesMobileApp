@@ -22,6 +22,12 @@ from playwright.sync_api import sync_playwright
 import pdfplumber
 import cv2
 import numpy as np
+from openai import OpenAI
+from dotenv import load_dotenv
+from datetime import datetime
+from prompts import get_expense_prompt
+import json
+from models import Category
 
 
 
@@ -1223,10 +1229,132 @@ def parse_einvoice():
 
 
 
+
+load_dotenv()
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+
+# =========================
+# 🔥 GET USER CATEGORIES
+# =========================
+def get_user_categories(user_id):
+    categories = Category.query.filter_by(
+        user_id=user_id,
+        type="expense"   # only expense categories
+    ).all()
+
+    return [c.name for c in categories]
+
+
+# =========================
+# 🎤 TRANSCRIBE API
+# =========================
+@app.route("/transcribe", methods=["POST"])
+def transcribe():
+    try:
+        print("🔥 REQUEST RECEIVED")
+
+        # =========================
+        # ✅ CHECK FILE
+        # =========================
+        if "file" not in request.files:
+            return jsonify({"error": "No file uploaded"}), 400
+
+        file = request.files["file"]
+
+        # =========================
+        # ✅ GET USER ID
+        # =========================
+        user_id = request.form.get("userId")
+
+        if not user_id:
+            return jsonify({"error": "Missing userId"}), 400
+
+        user_id = int(user_id)
+
+        print("👤 USER ID:", user_id)
+
+        # =========================
+        # ✅ SAVE AUDIO
+        # =========================
+        filepath = "temp.m4a"
+        file.save(filepath)
+
+        # =========================
+        # 🎤 WHISPER
+        # =========================
+        with open(filepath, "rb") as audio:
+            transcript = client.audio.transcriptions.create(
+                model="gpt-4o-mini-transcribe",
+                file=audio
+            )
+
+        text = transcript.text
+        print("🗣 TRANSCRIBED TEXT:", text)
+
+        # =========================
+        # 📂 GET USER CATEGORIES
+        # =========================
+        categories = get_user_categories(user_id)
+
+        # fallback (important)
+        if not categories:
+            categories = ["food", "transport", "billing"]
+
+        print("📂 USER CATEGORIES:", categories)
+
+        # =========================
+        # 🧠 GPT PROMPT
+        # =========================
+        today = datetime.today().strftime("%Y-%m-%d")
+
+        prompt = get_expense_prompt(text, today, categories)
+
+        print("🧠 PROMPT SENT TO AI")
+
+        # =========================
+        # 🤖 GPT CALL
+        # =========================
+        chat = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"}
+        )
+
+        result = chat.choices[0].message.content
+        print("🤖 RAW GPT RESULT:", result)
+
+        # =========================
+        # ✅ PARSE JSON
+        # =========================
+        try:
+            parsed = json.loads(result)
+        except:
+            parsed = {
+                "amount": None,
+                "note": "General expense",
+                "suggestedCategory": "",
+                "date": today
+            }
+
+        print("✅ FINAL PARSED:", parsed)
+
+        # =========================
+        # ✅ RESPONSE
+        # =========================
+        return jsonify({
+            "text": text,
+            "result": parsed
+        })
+
+    except Exception as e:
+        print("🔥 BACKEND ERROR:", str(e))
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+
 # -------------------- RUN SERVER --------------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
-
-# if __name__ == "__main__":
-#     app.run(debug=True)
 
