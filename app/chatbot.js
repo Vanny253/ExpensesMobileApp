@@ -14,7 +14,11 @@ import {
   View
 } from "react-native";
 import API_URL from "../api/config";
+import { TextInput } from "react-native";
 import { useUser } from "../context/UserContext";
+import { sendChatMessage } from "../components/chatService";
+import { formatExpense } from "../components/chatFormatter";
+
 
 export default function ChatbotScreen() {
   const { user } = useUser();
@@ -43,6 +47,11 @@ export default function ChatbotScreen() {
       params,
     });
   };
+
+  const [inputText, setInputText] = useState("");
+  const [currentExpense, setCurrentExpense] = useState(null);
+  const [activeFlow, setActiveFlow] = useState(null);
+  const [flowData, setFlowData] = useState({});
 
 
   const saveToStorage = async (data) => {
@@ -89,40 +98,26 @@ export default function ChatbotScreen() {
 
   useEffect(() => {
     const init = async () => {
-      try {
-        const saved = await AsyncStorage.getItem(CHAT_KEY);
+      const welcome = [
+        {
+          role: "assistant",
+          text: "👋 What can I help you?",
+          actions: [
+            "Add Expense",
+            "Add Budget",
+            "Add Regular Payment"
+          ],
+          time: new Date().toLocaleTimeString(),
+        },
+      ];
 
-        if (saved) {
-          setMessages(JSON.parse(saved));
-        } else {
-          const welcome = [
-            {
-              role: "assistant",
-              text:
-                "👋 Welcome!\n\n🎤 Speak\n📷 Scan receipt\n🖼 Upload\n📡 Scan QR",
-              time: new Date().toLocaleTimeString(),
-            },
-          ];
+      setMessages(welcome);
+      await AsyncStorage.setItem(CHAT_KEY, JSON.stringify(welcome));
 
-          setMessages(welcome);
-
-          if (user) {
-            await AsyncStorage.setItem(CHAT_KEY, JSON.stringify(welcome));
-          }
-        }
-
-        setInitialized(true);
-      } catch (err) {
-        console.log("Init error:", err);
-      }
+      setInitialized(true);
     };
 
     init();
-  }, [user]);
-
-  useEffect(() => {
-    setInitialized(false);
-    setMessages([]);
   }, [user]);
 
 
@@ -257,13 +252,17 @@ export default function ChatbotScreen() {
               await AsyncStorage.removeItem(CHAT_KEY);
 
               const welcome = [
-                {
-                  role: "assistant",
-                  text:
-                    "👋 Welcome!\n\n🎤 Speak\n📷 Scan receipt\n🖼 Upload\n📡 Scan QR",
-                  time: new Date().toLocaleTimeString(),
-                },
-              ];
+              {
+                role: "assistant",
+                text: "👋 What can I help you?",
+                actions: [
+                  "Add Expense",
+                  "Add Budget",
+                  "Add Regular Payment"
+                ],
+                time: new Date().toLocaleTimeString(),
+              },
+            ];
 
               setMessages(welcome);
               await saveToStorage(welcome);
@@ -419,80 +418,75 @@ export default function ChatbotScreen() {
 
   // ================= VOICE RECORD =================
     const startRecording = async () => {
-      try {
-        console.log("🎤 START RECORDING");
+    try {
+      console.log("🎤 START RECORDING");
 
-        const permission = await Audio.requestPermissionsAsync();
+      const permission = await Audio.requestPermissionsAsync();
 
-        if (!permission.granted) {
-          Alert.alert("Permission required", "Please allow microphone access");
-          return;
-        }
-
-        if (recordingRef.current) {
-          await recordingRef.current.stopAndUnloadAsync();
-          recordingRef.current = null;
-        }
-
-        const recording = new Audio.Recording();
-
-        await recording.prepareToRecordAsync(
-          Audio.RecordingOptionsPresets.HIGH_QUALITY
-        );
-
-        await recording.startAsync();
-
-        recordingRef.current = recording;
-
-        setIsRecording(true);
-
-        console.log("🎤 RECORDING STARTED");
-      } catch (err) {
-        console.log("Start recording error:", err);
+      if (!permission.granted) {
+        Alert.alert("Permission required", "Please allow microphone access");
+        return;
       }
-    };
+
+      if (recordingRef.current) {
+        await recordingRef.current.stopAndUnloadAsync();
+        recordingRef.current = null;
+      }
+
+      const recording = new Audio.Recording();
+
+      await recording.prepareToRecordAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+
+      await recording.startAsync();
+
+      recordingRef.current = recording;
+      setIsRecording(true);
+
+      console.log("🎤 RECORDING STARTED");
+    } catch (err) {
+      console.log("Start recording error:", err);
+    }
+  };
 
     const stopRecording = async () => {
-      try {
-        if (!recordingRef.current) return;
+  try {
+    if (!recordingRef.current) return;
 
-        console.log("🛑 STOP RECORDING");
+    console.log("🛑 STOP RECORDING");
 
-        await recordingRef.current.stopAndUnloadAsync();
+    await recordingRef.current.stopAndUnloadAsync();
 
-        const uri = recordingRef.current.getURI();
+    const uri = recordingRef.current.getURI();
 
-        console.log("🎤 AUDIO URI:", uri);
+    recordingRef.current = null;
+    setIsRecording(false);
 
-        recordingRef.current = null;
-        setIsRecording(false);
+    // show temporary UI
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        text: "🎤 Processing voice...",
+        time: new Date().toLocaleTimeString(),
+      },
+    ]);
 
-        // 🔥 SHOW UI IMMEDIATELY
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "user",
-            text: "🎤 Listening...",
-          },
-        ]);
+    // ONLY transcribe → then send to chatbot
+    await sendAudioToBackend(uri);
 
-        sendAudioToBackend(uri);
+  } catch (err) {
+    console.log("Stop recording error:", err);
+  }
+};
 
-        return uri;
-      } catch (err) {
-        console.log("Stop recording error:", err);
-      }
-    };
-  
-const sendAudioToBackend = async (uri) => {
+  const sendAudioToBackend = async (uri) => {
   setLoading(true);
 
   try {
-    console.log("🎤 START UPLOAD AUDIO:", uri);
+    console.log("🎤 UPLOADING AUDIO:", uri);
 
-    // =========================
-    // FORM DATA
-    // =========================
     const formData = new FormData();
 
     formData.append("file", {
@@ -501,143 +495,415 @@ const sendAudioToBackend = async (uri) => {
       type: "audio/m4a",
     });
 
-    // ✅ FIX: correct user id field
-    const userId = user?.user_id;
+    formData.append("userId", String(user.user_id));
 
-    console.log("👤 USER OBJECT:", user);
-
-    if (!userId) {
-      throw new Error("Missing user_id");
-    }
-
-    formData.append("userId", String(userId));
-
-    // =========================
-    // CALL BACKEND
-    // =========================
     const res = await fetch(`${API_URL}/transcribe`, {
       method: "POST",
       body: formData,
     });
 
-    const raw = await res.text();
-    console.log("📦 RAW BACKEND RESPONSE:", raw);
+    const data = await res.json();
 
-    let data;
-    try {
-      data = JSON.parse(raw);
-    } catch (e) {
-      throw new Error("Backend did not return valid JSON");
-    }
+    if (data.error) throw new Error(data.error);
 
-    if (data.error) {
-      throw new Error(data.error);
-    }
+    const text = data.text;
 
-    const parsed = data.result || {};
+    console.log("🗣 TRANSCRIBED:", text);
 
-    console.log("🧠 PARSED RESULT:", parsed);
-    console.log("🗣 USER SAID:", data.text);
-
-    // =========================
-    // SAFE AMOUNT
-    // =========================
-    let safeAmount = "";
-
-    if (parsed.amount != null && parsed.amount !== "") {
-      safeAmount = String(parsed.amount);
-    }
-
-    // =========================
-    // SAFE CATEGORY
-    // =========================
-    let safeCategory = "";
-
-    if (parsed.suggestedCategory) {
-      safeCategory = parsed.suggestedCategory
-        .toLowerCase()
-        .trim();
-    }
-
-    // =========================
-    // TIME
-    // =========================
-    const timeNow = new Date().toLocaleTimeString();
-
-    // =========================
-    // UPDATE CHAT UI
-    // =========================
-    setMessages((prev) => {
-      const updated = [...prev];
-
-      // remove "Listening..." placeholder
-      if (
-        updated.length &&
-        updated[updated.length - 1].text === "🎤 Listening..."
-      ) {
-        updated.pop();
-      }
-
-      return [
-        ...updated,
-
-        // =========================
-        // USER MESSAGE (VOICE INPUT)
-        // =========================
-        {
-          role: "user",
-          text: `🎤 Voice Input:\n"${data.text || ""}"`,
-          time: timeNow,
-        },
-
-        // =========================
-        // AI PARSED RESULT (IMPORTANT PART)
-        // =========================
-        {
-          role: "assistant",
-          text:
-            `🤖 Expense Extracted\n\n` +
-            `🏷 Title: ${parsed.note || "General expense"}\n` +
-            `💰 Amount: RM ${safeAmount || "0.00"}\n` +
-            `📅 Date: ${parsed.date || "Not detected"}\n` +
-            `🏷 Category: ${safeCategory || "Not detected"}\n\n` +
-            `👉 Ready to add to expense form`,
-          time: timeNow,
-        },
-      ];
-    });
-
-    // =========================
-    // NAVIGATION PAYLOAD
-    // =========================
-    const payload = {
-      scannedAmount: safeAmount,
-      scannedTitle: parsed.note || "General expense",
-      scannedDate: parsed.date || "",
-      scannedCategory: safeCategory,
-    };
-
-    console.log("📤 FINAL PAYLOAD:", payload);
-
-    goToAddExpense(payload);
+    // ❗ THIS IS THE KEY CHANGE
+    // treat voice exactly like text message
+    handleUserInput(text, "voice");
 
   } catch (err) {
     console.log("❌ Voice error:", err);
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "assistant",
-        text: `❌ ${err.message || "Voice processing failed"}`,
-      },
-    ]);
+    addMessage({
+      role: "assistant",
+      text: "❌ Voice processing failed",
+      time: new Date().toLocaleTimeString(),
+    });
 
-    Alert.alert("Voice failed", err.message);
+    Alert.alert("Error", err.message);
   }
 
   setLoading(false);
 };
 
+const handleVoiceResult = (transcribedText) => {
+  handleUserInput(transcribedText, "voice");
+};
+
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+// =========================
+// HANDLE USER INPUT (TEXT + VOICE)
+// =========================
+const handleUserInput = async (input, source = "text") => {
+  const text = typeof input === "string" ? input : input?.text;
+  const finalText = text?.trim();
+  if (!finalText) return;
+
+  addMessage({
+    role: "user",
+    text: source === "voice" ? `🎤 ${finalText}` : finalText,
+    time: new Date().toLocaleTimeString(),
+  });
+
+  // ONLY ONE FLOW
+  if (activeFlow === "expense") {
+    await handleExpense(finalText);
+    return;
+  }
+  if (activeFlow === "budget") {
+    await handleBudgetFlow(finalText);
+    return;
+  }
+ 
+  if (activeFlow === "regularPayment") {
+    await handleRegularPaymentFlow(finalText);
+    return;
+  }
+
+  sendMessageToAI(finalText);
+};
+
+
+
+
+
+const sendMessageToAI = async (message) => {
+  const timeNow = new Date().toLocaleTimeString();
+
+  try {
+    const data = await sendChatMessage(
+      message,
+      user.user_id,
+      currentExpense
+    );
+
+    console.log("🤖 CHAT:", data);
+
+    if (data.intent === "extract") {
+      setCurrentExpense(data.expense);
+
+      addMessage({
+        role: "assistant",
+        text: formatExpense(data.expense),
+        time: timeNow,
+      });
+    }
+
+    else if (data.intent === "update") {
+      setCurrentExpense(data.expense);
+
+      addMessage({
+        role: "assistant",
+        text: data.message || "✅ Updated successfully",
+        time: timeNow,
+      });
+
+      router.setParams({
+        scannedTitle: data.expense.note,
+        scannedAmount: String(data.expense.amount || ""),
+        scannedDate: data.expense.date,
+        scannedCategory: data.expense.suggestedCategory,
+      });
+    }
+
+    else if (data.intent === "confirm") {
+      setCurrentExpense(null);
+
+      addMessage({
+        role: "assistant",
+        text: "✅ Expense saved successfully",
+        time: timeNow,
+      });
+    }
+
+    else if (data.intent === "chat") {
+      addMessage({
+        role: "assistant",
+        text: data.message,
+        actions: data.actions,
+        time: timeNow,
+      });
+    }
+
+  } catch (err) {
+    console.log("❌ CHAT ERROR:", err);
+
+    addMessage({
+      role: "assistant",
+      text: "❌ Something went wrong",
+      time: timeNow,
+    });
+  }
+};
+
+const handleSend = () => {
+  handleUserInput(inputText, "text");
+  setInputText("");
+};
+
+
+
+const handleAction = (action) => {
+  addMessage({
+    role: "user",
+    text: action,
+    time: new Date().toLocaleTimeString(),
+  });
+
+  if (action === "Add Budget") {
+    setActiveFlow("budget");
+    askBudgetStep1();
+  }
+
+  if (action === "Add Expense") {
+    setActiveFlow("expense");
+    askExpenseStep1();
+  }
+
+  if (action === "Add Regular Payment") {
+    setActiveFlow("regularPayment");
+    askRegularPaymentStep1();
+  }
+};
+
+
+//add new expenses by using chatbot
+const askExpenseStep1 = () => {
+  setFlowData({});
+
+  addMessage({
+    role: "assistant",
+    text:
+      "📝 Just tell me your expense in ONE message.\n\n" +
+      "Include:\n" +
+      "- what you spent\n" +
+      "- amount\n" +
+      "- category (optional)\n" +
+      "- date (optional)\n\n" +
+      "Example:\n" +
+      "Dinner RM12 food yesterday",
+    time: new Date().toLocaleTimeString(),
+  });
+};
+
+const handleExpense = async (text) => {
+  try {
+    const formData = new FormData();
+
+    formData.append("text", text);
+    formData.append("userId", String(user.user_id));
+
+    const res = await fetch(`${API_URL}/transcribe`, {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await res.json();
+
+    if (data.error) throw new Error(data.error);
+
+    const parsed = data.result;
+
+    const amount = parsed.amount || "";
+    const title = parsed.note || "General expense";
+    const category = parsed.suggestedCategory || "General";
+    const date = parsed.date || new Date().toISOString().split("T")[0];
+
+    addMessage({
+      role: "assistant",
+      text:
+        `🧾 Receipt\n\n` +
+        `🏷 Title: ${title}\n` +
+        `💰 Amount: RM ${amount}\n` +
+        `📂 Category: ${category}\n` +
+        `📅 Date: ${date}\n\n` +
+        `✅ Expense added successfully`,
+      time: new Date().toLocaleTimeString(),
+    });
+
+    goToAddExpense({
+      scannedTitle: title,
+      scannedAmount: String(amount),
+      scannedCategory: category,
+      scannedDate: date,
+    });
+
+    setActiveFlow(null);
+    setFlowData({});
+
+  } catch (err) {
+    console.log("❌ EXPENSE ERROR:", err);
+
+    addMessage({
+      role: "assistant",
+      text: "❌ Failed to process expense",
+      time: new Date().toLocaleTimeString(),
+    });
+  }
+};
+
+
+
+
+
+
+//Using robot to add new budget
+const askBudgetStep1 = () => {
+  addMessage({
+    role: "assistant",
+    text:
+      "💰 Let's create a budget.\n\n" +
+      "Just tell me like:\n" +
+      "Food 500\n\n" +
+      "Or include category + amount + month",
+    time: new Date().toLocaleTimeString(),
+  });
+};
+
+
+
+const handleBudgetFlow = async (text) => {
+  const timeNow = new Date().toLocaleTimeString();
+
+  // ✅ LOG USER INPUT
+  console.log("📩 USER INPUT (BUDGET):", text);
+
+  try {
+    const res = await fetch(`${API_URL}/ai-extract-budget`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        text,
+        userId: user.user_id,
+      }),
+    });
+
+    const data = await res.json();
+
+    console.log("🧠 BUDGET PARSED:", data);
+
+    const amount = data.amount || "";
+    const category = data.category || "General";
+
+    addMessage({
+      role: "assistant",
+      text:
+        `💰 Budget Created\n\n` +
+        `📂 Category: ${category}\n` +
+        `💵 Amount: RM ${amount}\n\n` +
+        `You can edit it below.`,
+      time: timeNow,
+    });
+
+    router.push({
+      pathname: "/addBudget",
+      params: {
+        scannedAmount: String(amount),
+        scannedCategory: category,
+      },
+    });
+
+    setActiveFlow(null);
+  } catch (err) {
+    console.log("❌ BUDGET FLOW ERROR:", err);
+
+    addMessage({
+      role: "assistant",
+      text: "❌ Failed to process budget",
+      time: timeNow,
+    });
+  }
+};
+
+
+const askRegularPaymentStep1 = () => {
+  addMessage({
+    role: "assistant",
+    text:
+      "🔁 Let's add a regular payment.\n\n" +
+      "You can type naturally, like:\n\n" +
+      "• Netflix 50 monthly\n" +
+      "• Rent 800 monthly billing\n" +
+      "• Salary 3000 income monthly\n" +
+      "• Gym 100 weekly health\n\n" +
+      "💡 Include:\n" +
+      "- amount\n" +
+      "- how often (daily / weekly / monthly / yearly)\n" +
+      "- optional category or income/expense\n\n" +
+      "I'll fill everything for you automatically ✨",
+    time: new Date().toLocaleTimeString(),
+  });
+};
+
+
+
+const handleRegularPaymentFlow = async (text) => {
+  const timeNow = new Date().toLocaleTimeString();
+
+  console.log("📩 REGULAR PAYMENT INPUT:", text);
+
+  try {
+    // ❗ USE TRANSCRIBE (your current flow)
+    const formData = new FormData();
+    formData.append("text", text);
+    formData.append("userId", String(user.user_id));
+
+    const res = await fetch(`${API_URL}/transcribe`, {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await res.json();
+    const parsed = data.result;
+
+    console.log("🧠 PARSED FROM TRANSCRIBE:", parsed);
+
+    // ✅ MAP CORRECTLY
+    const title = parsed.note || "Untitled";
+    const amount = parsed.amount || "";
+    const category = parsed.suggestedCategory || "General";
+
+    // ❗ manually detect frequency (since transcribe doesn't)
+    let frequency = "Monthly";
+    if (text.includes("weekly")) frequency = "Weekly";
+    if (text.includes("daily")) frequency = "Daily";
+    if (text.includes("yearly")) frequency = "Yearly";
+
+    addMessage({
+      role: "assistant",
+      text:
+        `🔁 Regular Payment Created\n\n` +
+        `📌 Title: ${title}\n` +
+        `📂 Category: ${category}\n` +
+        `💰 Amount: RM ${amount}\n` +
+        `🔄 Frequency: ${frequency}\n\n` +
+        `You can edit it below.`,
+      time: timeNow,
+    });
+
+    router.push({
+      pathname: "/addRegularPayment",
+      params: {
+        title,
+        scannedAmount: String(amount),
+        scannedCategory: category,
+        frequency,
+        type: "expense",
+      },
+    });
+
+    setActiveFlow(null);
+
+  } catch (err) {
+    console.log("❌ ERROR:", err);
+  }
+};
 
 
   if (!user) {
@@ -679,20 +945,35 @@ const sendAudioToBackend = async (uri) => {
         contentContainerStyle={{ paddingBottom: 120 }}>
 
         {messages.map((msg, index) => (
-          <View
-            key={index}
-            style={[
-              styles.messageBox,
-              msg.role === "user" ? styles.userBox : styles.assistantBox,
-            ]}
-          >
-            {/* MESSAGE TEXT */}
-            <Text style={styles.messageText}>{msg.text}</Text>
+        <View
+          key={index}
+          style={[
+            styles.messageBox,
+            msg.role === "user" ? styles.userBox : styles.assistantBox,
+          ]}
+        >
+          <Text style={styles.messageText}>{msg.text}</Text>
 
-            {/* TIME */}
-            <Text style={styles.timeText}>{msg.time || ""}</Text>
-          </View>
-        ))}
+          {/* ✅ ACTION BUTTONS */}
+          {msg.actions && (
+            <View style={{ marginTop: 10 }}>
+              {msg.actions.map((action, i) => (
+                <TouchableOpacity
+                  key={i}
+                  style={styles.actionBtn}
+                  onPress={() => handleAction(action)}
+                >
+                  <Text style={{ color: "#007AFF" }}>
+                    {action}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          <Text style={styles.timeText}>{msg.time || ""}</Text>
+        </View>
+      ))}
       </ScrollView>
 
       <View style={styles.bottomBar}>
@@ -710,11 +991,12 @@ const sendAudioToBackend = async (uri) => {
         </TouchableOpacity>
 
         {/* INPUT BOX */}
-        <View style={styles.inputBox}>
-          <Text style={styles.placeholderText}>
-            Type message...
-          </Text>
-        </View>
+        <TextInput
+          style={styles.inputBox}
+          placeholder="Type message..."
+          value={inputText}
+          onChangeText={setInputText}
+        />
 
         {/* ACTION ICONS */}
         <View style={styles.iconGroup}>
@@ -732,6 +1014,10 @@ const sendAudioToBackend = async (uri) => {
           {/* 📡 QR */}
           <TouchableOpacity onPress={() => setQrMode(true)} style={styles.iconBtn}>
             <Ionicons name="scan-outline" size={24} color="#28a745" />
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={handleSend} style={styles.iconBtn}>
+            <Ionicons name="send" size={24} color="#007AFF" />
           </TouchableOpacity>
 
         </View>
@@ -838,4 +1124,11 @@ loginBtn: {
   iconBtn: {
     marginHorizontal: 6,
   },
+  
+  actionBtn: {
+    padding: 8,
+    backgroundColor: "#f2f2f2",
+    borderRadius: 8,
+    marginVertical: 4,
+  }
 });

@@ -101,3 +101,85 @@ RULES:
 - If not mentioned → use today's date
 
 """
+
+
+def get_budget_prompt(text, today, categories):
+    return f"""
+You are a budget extraction AI.
+
+USER INPUT:
+"{text}"
+
+TODAY: {today}
+
+USER CATEGORIES:
+{categories}
+
+----------------------------
+
+Extract budget info.
+
+RULES:
+- category MUST come from user categories first
+- if match exists, return EXACT name
+- amount MUST be number
+- if no amount → null
+
+Return JSON ONLY:
+
+{{
+  "amount": number,
+  "category": string
+}}
+"""
+
+
+
+def detect_intent_prompt(user_input):
+    return f"""
+Classify the user intent.
+
+User input:
+"{user_input}"
+
+Return JSON:
+
+{{
+  "intent": "extract" | "update" | "confirm" | "chat"
+}}
+
+Rules:
+- New expense → extract
+- Modify existing → update
+- "save", "confirm", "done" → confirm
+- "chat" = normal conversation (hi, hello, how are you)
+
+"""
+
+
+def update_expense_prompt(user_input, current_expense):
+    return f"""
+You are an expense editing assistant.
+
+Current expense:
+{json.dumps(current_expense)}
+
+User instruction:
+"{user_input}"
+
+Return JSON:
+
+{{
+  "amount": number,
+  "note": string,
+  "suggestedCategory": string,
+  "date": "YYYY-MM-DD",
+  "message": string
+}}
+
+Rules:
+- "title" = "note"
+- Only update requested field
+- message = short confirmation like:
+  "Title updated to aeroplane"
+"""

@@ -17,6 +17,13 @@ import { addBudget } from "../api/budgetApi";
 
 import AppHeader from "../components/appHeader";
 import BackgroundWrapper from "../components/backgroundWrapper";
+import {
+  DEFAULT_EXPENSE_CATEGORIES,
+} from "../components/defaultIcon";
+
+import { useLocalSearchParams } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback } from "react";
 
 export default function AddBudget() {
   const { user } = useUser();
@@ -25,41 +32,81 @@ export default function AddBudget() {
   const [category, setCategory] = useState("");
   const [amount, setAmount] = useState("");
   const [categories, setCategories] = useState([]);
+  const params = useLocalSearchParams();
+  const [prefilled, setPrefilled] = useState(false);
 
-  const DEFAULT_CATEGORIES = [
-    { name: "Food" },
-    { name: "Transport" },
-    { name: "Billing" },
-    { name: "Shopping" },
-    { name: "Health" },
-    { name: "Entertainment" },
-  ];
+ 
+
+
+  useEffect(() => {
+    if (prefilled) return;
+    if (!params) return;
+
+    const scannedAmount = params.scannedAmount ?? params.amount;
+    const scannedCategory = params.scannedCategory;
+
+    if (scannedAmount) {
+      setAmount(String(scannedAmount));
+    }
+
+    if (scannedCategory) {
+      const normalized = scannedCategory.toLowerCase().trim();
+
+      const matched = categories.find(
+        (c) => c.name.toLowerCase() === normalized
+      );
+
+      if (matched) {
+        setCategory(matched.id); // IMPORTANT: use ID
+      } else {
+        setCategory(""); // force user to pick
+      }
+    }
+    setPrefilled(true);
+  }, [params]);
+
+  useFocusEffect(
+    useCallback(() => {
+      setAmount("");
+      setCategory("");
+      setPrefilled(false);
+    }, [])
+  );
+
 
   const loadCategories = async () => {
     if (!user) return;
 
     try {
       const dbCategories = await getCategories(user.user_id, "expense");
-      const dbNames = dbCategories.map((c) => c.name);
 
-      const defaultNames = DEFAULT_CATEGORIES.map((c) => c.name);
-
-      const mergedNames = [
-        ...defaultNames,
-        ...dbNames.filter((n) => !defaultNames.includes(n)),
-      ];
-
-      const finalCategories = mergedNames.map((name, idx) => ({
-        id: idx,
-        name,
+      const dbMapped = dbCategories.map((c) => ({
+        id: c.id,
+        name: c.name,
       }));
 
-      setCategories(finalCategories);
+      const defaultCats = DEFAULT_EXPENSE_CATEGORIES.map((c, index) => ({
+        id: `default-${index}`,
+        name: c.name,
+      }));
 
-      if (finalCategories.length > 0) {
-        setCategory(finalCategories[0].name);
+      // merge
+      const merged = [...defaultCats, ...dbMapped];
+
+      // remove duplicates by ID (IMPORTANT FIX)
+      const unique = merged.filter(
+        (item, index, self) =>
+          index === self.findIndex((t) => t.id === item.id)
+      );
+
+      setCategories(unique);
+
+      // auto select FIRST ID (NOT NAME)
+      if (!category && unique.length > 0) {
+        setCategory(unique[0].name);
       }
     } catch (err) {
+      console.log("CATEGORY LOAD ERROR:", err);
       Alert.alert("Error", "Failed to load categories");
     }
   };
@@ -115,7 +162,7 @@ export default function AddBudget() {
               onValueChange={(val) => setCategory(val)}
             >
               {categories.map((c) => (
-                <Picker.Item key={c.id} label={c.name} value={c.name} />
+                <Picker.Item key={c.id} label={c.name} value={c.id} />
               ))}
             </Picker>
           </View>

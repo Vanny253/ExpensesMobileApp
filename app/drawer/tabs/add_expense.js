@@ -102,117 +102,119 @@ const TransactionForm = ({ type }) => {
       ? DEFAULT_EXPENSE_CATEGORIES
       : DEFAULT_INCOME_CATEGORIES;
 
+  const params = useLocalSearchParams();
+  const [pendingAI, setPendingAI] = useState(null);
+
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
   const [date, setDate] = useState(new Date());
-  
+
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // const { amount: scannedAmount, date: scannedDate, title: scannedTitle } = useLocalSearchParams();
-  const params = useLocalSearchParams();
   const [categories, setCategories] = useState([]);
   const [removedKeys, setRemovedKeys] = useState([]);
 
-  const getKey = (cat) =>
-    cat.id ? `id:${cat.id}` : `name:${cat.name}`;
+  // ⭐ IMPORTANT: only apply AI/OCR params ONCE
+  const [prefilled, setPrefilled] = useState(false);
 
-  useEffect(() => {
-    const loadRemoved = async () => {
-      const saved = await AsyncStorage.getItem(STORAGE_KEY);
-      if (saved) setRemovedKeys(JSON.parse(saved));
-    };
-    loadRemoved();
-  }, []);
+  const getKey = (cat) => (cat.id ? `id:${cat.id}` : `name:${cat.name}`);
 
+  const normalize = (str) =>
+    str?.toLowerCase().trim().replace(/[^a-z0-9]/g, "");
+
+  const resolveCategoryId = (aiCategory) => {
+    if (!aiCategory) return "";
+
+    const input = normalize(aiCategory);
+
+    let bestMatch = null;
+
+    for (const c of categories) {
+      const name = normalize(c.name);
+
+      // exact match
+      if (name === input) return c.id;
+
+      // partial match (important for AI noise)
+      if (input.includes(name) || name.includes(input)) {
+        bestMatch = c;
+      }
+    }
+
+    return bestMatch ? bestMatch.id : "";
+  };
+
+
+  // =========================
+  // RESET WHEN USER ENTERS SCREEN (MANUAL MODE)
+  // =========================
   useFocusEffect(
     useCallback(() => {
-      // reset form every time user enters screen
       setTitle("");
       setAmount("");
       setCategory("");
       setDate(new Date());
-
-      return () => {
-        // optional cleanup (safe)
-      };
+      setPrefilled(false); // allow new AI fill next time
     }, [])
   );
 
-
+  // =========================
+  // APPLY AI / OCR / CHATBOT PREFILL (ONLY ONCE)
+  // =========================
   useEffect(() => {
-  const scannedAmount = params.scannedAmount ?? params.amount;
-  const scannedDate = params.scannedDate ?? params.date;
-  const scannedTitle = params.scannedTitle ?? params.title;
-  const scannedCategory = params.scannedCategory;
+    if (prefilled) return;
+    if (!params) return;
 
-  if (!scannedAmount && !scannedDate && !scannedTitle && !scannedCategory) return;
+    const scannedAmount = params.scannedAmount ?? params.amount;
+    const scannedDate = params.scannedDate ?? params.date;
+    const scannedTitle = params.scannedTitle ?? params.title;
+    const scannedCategory = params.scannedCategory;
 
-  console.log("📥 SCANNED DATA RECEIVED:", {
-    scannedAmount,
-    scannedDate,
-    scannedTitle,
-    scannedCategory,
-  });
+    if (!scannedAmount && !scannedDate && !scannedTitle && !scannedCategory)
+      return;
 
-  // 💰 AMOUNT
-  if (scannedAmount && String(scannedAmount) !== String(amount)) {
-    setAmount(String(scannedAmount));
-  }
+    console.log("📥 AI PREFILL RECEIVED:", params);
 
-  // 📅 DATE
-  if (scannedDate) {
-    let parsedDate = null;
+    if (scannedTitle) setTitle(String(scannedTitle));
+    if (scannedAmount) setAmount(String(scannedAmount));
 
-    if (scannedDate.includes("/")) {
-      const [day, month, year] = scannedDate.split("/");
-      parsedDate = new Date(year, month - 1, day);
-    } else {
-      parsedDate = new Date(scannedDate);
+    if (scannedDate) {
+      const d = new Date(scannedDate);
+      if (!isNaN(d.getTime())) setDate(d);
     }
 
-    if (
-      parsedDate &&
-      !isNaN(parsedDate.getTime()) &&
-      parsedDate.getTime() !== date.getTime()
-    ) {
-      setDate(parsedDate);
+    // ⚠️ DON'T set category yet (wait for categories load)
+    if (scannedCategory) {
+        setPendingAI(scannedCategory);
+      }
+
+      setPrefilled(true);
+    }, [params]);
+
+    useEffect(() => {
+    if (!pendingAI) return;
+    if (categories.length === 0) return;
+
+    const resolvedId = resolveCategoryId(pendingAI);
+
+    if (resolvedId) {
+      setCategory(resolvedId);
     }
-  }
 
-  // 🏪 TITLE
-  if (scannedTitle && scannedTitle !== title) {
-    setTitle(scannedTitle);
-  }
+    setPendingAI(null);
+  }, [categories, pendingAI]);
 
-
-  // 🏷 CATEGORY AUTO SELECT (SAFE VERSION)
-  if (scannedCategory && categories.length > 0) {
-    const cleanAI = scannedCategory.toLowerCase().trim();
-
-    const matched = categories.find((c) => {
-      const dbName = (c.name || "").toLowerCase().trim();
-
-      return dbName === cleanAI;
-    });
-
-    if (matched) {
-      console.log("🏷 AUTO CATEGORY FOUND:", matched.name);
-      setCategory(matched.id);
-    } else {
-      console.log("🏷 CATEGORY NOT FOUND → user must select manually");
-      // DO NOTHING → keep dropdown empty
-    }
-  }
-}, [params, categories]); // ✅ safe add categories
-
+  // =========================
+  // LOAD CATEGORIES
+  // =========================
   useEffect(() => {
     const fetchCategories = async () => {
       if (!user) return;
 
       const customCategories = await getCategories(user.user_id, type);
       const saved = await AsyncStorage.getItem(STORAGE_KEY);
-      const removedKeys = saved ? JSON.parse(saved) : [];
+      const removed = saved ? JSON.parse(saved) : [];
 
       const allCategories = [
         ...defaultCats,
@@ -223,10 +225,8 @@ const TransactionForm = ({ type }) => {
         })),
       ];
 
-      const getKey = (cat) => cat.id || cat.name;
-
       const filtered = allCategories.filter(
-        (cat) => !removedKeys.includes(getKey(cat))
+        (cat) => !removed.includes(cat.id || cat.name)
       );
 
       setCategories(filtered);
@@ -239,6 +239,9 @@ const TransactionForm = ({ type }) => {
     (cat) => !removedKeys.includes(getKey(cat))
   );
 
+  // =========================
+  // SUBMIT (MANUAL OR AI SAME FLOW)
+  // =========================
   const handleSubmit = async () => {
     if (!title || !amount || !category) {
       Alert.alert("Error", "Please fill in all fields.");
@@ -250,7 +253,10 @@ const TransactionForm = ({ type }) => {
       title,
       amount: parseFloat(amount),
       category,
-      date: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`,
+      date: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+        2,
+        "0"
+      )}-${String(date.getDate()).padStart(2, "0")}`,
     };
 
     if (type === "expense") await addExpense(data);
@@ -258,10 +264,12 @@ const TransactionForm = ({ type }) => {
 
     Alert.alert("Success", `${type} saved successfully`);
 
+    // reset AFTER save (manual flow safe)
     setTitle("");
     setAmount("");
     setCategory("");
     setDate(new Date());
+    setPrefilled(false);
   };
 
   return (

@@ -36,6 +36,7 @@ export default function RegularPaymentDetail() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [amount, setAmount] = useState("");
   const params = useLocalSearchParams();
+  const [pendingAI, setPendingAI] = useState(null);
 
   const payment = useMemo(() => {
     try {
@@ -53,6 +54,21 @@ export default function RegularPaymentDetail() {
     return `${year}-${month}-${day}`;
   };
 
+  const normalize = (str) =>
+    str?.toString().toLowerCase().trim();
+
+  const resolveCategoryName = (aiCategory) => {
+    if (!aiCategory) return "";
+
+    const input = normalize(aiCategory);
+
+    const match = categories.find((c) => {
+      return normalize(c.name) === input;
+    });
+
+    return match ? match.name : "";
+  };
+
   // Load categories
   const loadCategories = async () => {
     if (!user) return;
@@ -60,10 +76,8 @@ export default function RegularPaymentDetail() {
     try {
       const userCategories = await getCategories(user.user_id, type);
 
-      // Extract names from DB
       const userCategoryNames = userCategories.map((c) => c.name);
 
-      // ✅ USE IMPORTED DEFAULT ICONS
       const defaultCategories =
         type === "expense"
           ? DEFAULT_EXPENSE_CATEGORIES
@@ -71,13 +85,11 @@ export default function RegularPaymentDetail() {
 
       const defaultNames = defaultCategories.map((c) => c.name);
 
-      // Merge without duplicates
       const mergedNames = [
         ...defaultNames,
         ...userCategoryNames.filter((name) => !defaultNames.includes(name)),
       ];
 
-      // Convert to Picker format
       const finalCategories = mergedNames.map((name, index) => ({
         id: index,
         name,
@@ -85,13 +97,31 @@ export default function RegularPaymentDetail() {
 
       setCategories(finalCategories);
 
-      if (finalCategories.length > 0) {
+      // ✅ PRIORITY: use chatbot category if exists
+      if (params?.scannedCategory) {
+        setCategory(params.scannedCategory);
+      } else if (finalCategories.length > 0) {
         setCategory(finalCategories[0].name);
       }
+
     } catch (error) {
       Alert.alert("Error", "Failed to load categories");
     }
   };
+
+  useEffect(() => {
+    if (!pendingAI) return;
+    if (categories.length === 0) return;
+
+    const resolved = resolveCategoryName(pendingAI);
+
+    if (resolved) {
+      setCategory(resolved);
+    }
+
+    setPendingAI(null);
+  }, [categories, pendingAI]);
+
 
   const onDateChange = (event, selectedDate) => {
     setShowDatePicker(false);
@@ -100,6 +130,25 @@ export default function RegularPaymentDetail() {
       setDate(selectedDate);
     }
   };
+
+
+  useEffect(() => {
+    if (!params) return;
+
+    console.log("📥 RECEIVED PARAMS (REGULAR PAYMENT):", params);
+
+    if (params.title) setTitle(params.title);
+    if (params.scannedAmount) setAmount(params.scannedAmount);
+    if (params.type) setType(params.type);
+    if (params.frequency) setFrequency(params.frequency);
+
+    // ❌ DON'T set category directly
+    if (params.scannedCategory) {
+      setPendingAI(params.scannedCategory);
+    }
+
+  }, [params]);
+
 
   useEffect(() => {
     if (user?.user_id) {
@@ -113,20 +162,32 @@ export default function RegularPaymentDetail() {
       return;
     }
 
+    const payload = {
+      user_id: user.user_id,
+      title,
+      type,
+      category,
+      frequency,
+      start_date: formatLocalDate(date),
+      amount: parseFloat(amount),
+    };
+
+    console.log("\n==============================");
+    console.log("📤 SAVING REGULAR PAYMENT");
+    console.log("🧾 DATA:", payload);
+
     try {
-      await addRegularPayment({
-        user_id: user.user_id,
-        title,
-        type,
-        category,
-        frequency,
-        start_date: formatLocalDate(date),
-        amount: parseFloat(amount),
-      });
+      await addRegularPayment(payload);
+
+      console.log("✅ SUCCESS: Regular payment saved");
+      console.log("==============================\n");
 
       Alert.alert("Success", "Regular payment added");
       router.back();
     } catch (error) {
+      console.log("❌ SAVE ERROR:", error);
+      console.log("==============================\n");
+
       Alert.alert("Error", error.message || "Failed to add payment");
     }
   };

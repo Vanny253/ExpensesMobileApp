@@ -26,8 +26,11 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from datetime import datetime
 from prompts import get_expense_prompt
+from prompts import detect_intent_prompt
+from prompts import get_budget_prompt
 import json
 from models import Category
+from word2number import w2n
 
 
 
@@ -1230,90 +1233,397 @@ def parse_einvoice():
 
 
 
+# load_dotenv()
+# client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+
+# # =========================
+# # 🔥 GET USER CATEGORIES
+# # =========================
+# def get_user_categories(user_id):
+#     categories = Category.query.filter_by(
+#         user_id=user_id,
+#         type="expense"   # only expense categories
+#     ).all()
+
+#     return [c.name for c in categories]
+
+
+# # =========================
+# # 🎤 TRANSCRIBE API
+# # =========================
+# @app.route("/transcribe", methods=["POST"])
+# def transcribe():
+#     try:
+#         print("🔥 REQUEST RECEIVED")
+
+#         # =========================
+#         # ✅ CHECK FILE
+#         # =========================
+#         if "file" not in request.files:
+#             return jsonify({"error": "No file uploaded"}), 400
+
+#         file = request.files["file"]
+
+#         # =========================
+#         # ✅ GET USER ID
+#         # =========================
+#         user_id = request.form.get("userId")
+
+#         if not user_id:
+#             return jsonify({"error": "Missing userId"}), 400
+
+#         user_id = int(user_id)
+
+#         print("👤 USER ID:", user_id)
+
+#         # =========================
+#         # ✅ SAVE AUDIO
+#         # =========================
+#         filepath = "temp.m4a"
+#         file.save(filepath)
+
+#         # =========================
+#         # 🎤 WHISPER
+#         # =========================
+#         with open(filepath, "rb") as audio:
+#             transcript = client.audio.transcriptions.create(
+#                 model="gpt-4o-mini-transcribe",
+#                 file=audio
+#             )
+
+#         text = transcript.text
+#         print("🗣 TRANSCRIBED TEXT:", text)
+
+#         # =========================
+#         # 📂 GET USER CATEGORIES
+#         # =========================
+#         categories = get_user_categories(user_id)
+
+#         # fallback (important)
+#         if not categories:
+#             categories = ["food", "transport", "billing"]
+
+#         print("📂 USER CATEGORIES:", categories)
+
+#         # =========================
+#         # 🧠 GPT PROMPT
+#         # =========================
+#         today = datetime.today().strftime("%Y-%m-%d")
+
+#         prompt = get_expense_prompt(text, today, categories)
+
+#         print("🧠 PROMPT SENT TO AI")
+
+#         # =========================
+#         # 🤖 GPT CALL
+#         # =========================
+#         chat = client.chat.completions.create(
+#             model="gpt-4o-mini",
+#             messages=[{"role": "user", "content": prompt}],
+#             response_format={"type": "json_object"}
+#         )
+
+#         result = chat.choices[0].message.content
+#         print("🤖 RAW GPT RESULT:", result)
+
+#         # =========================
+#         # ✅ PARSE JSON
+#         # =========================
+#         try:
+#             parsed = json.loads(result)
+#         except:
+#             parsed = {
+#                 "amount": None,
+#                 "note": "General expense",
+#                 "suggestedCategory": "",
+#                 "date": today
+#             }
+
+#         print("✅ FINAL PARSED:", parsed)
+
+#         # =========================
+#         # ✅ RESPONSE
+#         # =========================
+#         return jsonify({
+#             "text": text,
+#             "result": parsed
+#         })
+
+#     except Exception as e:
+#         print("🔥 BACKEND ERROR:", str(e))
+#         return jsonify({
+#             "error": str(e)
+#         }), 500
+
+
+
+# @app.route("/chat", methods=["POST"])
+# def chat():
+#     try:
+#         data = request.json
+
+#         user_input = data.get("message")
+#         user_id = data.get("userId")
+#         current_expense = data.get("currentExpense")  # from frontend
+
+#         if not user_input:
+#             return jsonify({"error": "Missing message"}), 400
+
+#         # =========================
+#         # 🧠 DETECT INTENT
+#         # =========================
+#         intent_prompt = detect_intent_prompt(user_input)
+
+#         intent_res = client.chat.completions.create(
+#             model="gpt-4o-mini",
+#             messages=[{"role": "user", "content": intent_prompt}],
+#             response_format={"type": "json_object"}
+#         )
+
+#         intent_json = json.loads(intent_res.choices[0].message.content)
+#         intent = intent_json.get("intent")
+
+#         print("🧠 INTENT:", intent)
+
+#         # =========================
+#         # 📂 GET CATEGORIES
+#         # =========================
+#         categories = get_user_categories(user_id)
+#         if not categories:
+#             categories = ["food", "transport", "billing"]
+
+#         today = datetime.today().strftime("%Y-%m-%d")
+
+#         # =========================
+#         # 🧾 HANDLE INTENTS
+#         # =========================
+
+#         # 1️⃣ EXTRACT NEW EXPENSE
+#         if intent == "extract":
+#             prompt = get_expense_prompt(user_input, today, categories)
+
+#             res = client.chat.completions.create(
+#                 model="gpt-4o-mini",
+#                 messages=[{"role": "user", "content": prompt}],
+#                 response_format={"type": "json_object"}
+#             )
+
+#             parsed = json.loads(res.choices[0].message.content)
+
+#             return jsonify({
+#                 "intent": "extract",
+#                 "expense": parsed
+#             })
+
+#         # 2️⃣ UPDATE EXISTING EXPENSE
+#         elif intent == "update":
+#             if not current_expense:
+#                 return jsonify({"error": "No current expense to update"}), 400
+
+#             prompt = update_expense_prompt(user_input, current_expense)
+
+#             res = client.chat.completions.create(
+#                 model="gpt-4o-mini",
+#                 messages=[{"role": "user", "content": prompt}],
+#                 response_format={"type": "json_object"}
+#             )
+
+#             updated = json.loads(res.choices[0].message.content)
+
+#             return jsonify({
+#                 "intent": "update",
+#                 "expense": updated
+#             })
+
+#         # 3️⃣ CONFIRM & SAVE
+#         elif intent == "confirm":
+#             if not current_expense:
+#                 return jsonify({"error": "Nothing to save"}), 400
+
+#             # 👉 SAVE TO DATABASE HERE
+#             new_expense = Expense(
+#                 user_id=user_id,
+#                 amount=current_expense["amount"],
+#                 note=current_expense["note"],
+#                 category=current_expense["suggestedCategory"],
+#                 date=current_expense["date"]
+#             )
+
+#             db.session.add(new_expense)
+#             db.session.commit()
+
+#             return jsonify({
+#                 "intent": "confirm",
+#                 "message": "Expense saved successfully"
+#             })
+
+#         elif intent == "chat":
+#             return jsonify({
+#                 "intent": "chat",
+#                 "message": "👋 What can I help you?",
+#                 "actions": [
+#                     "Add Expense",
+#                     "Add Budget",
+#                     "Add Regular Payment"
+#                 ]
+#             })
+
+#         else:
+#             return jsonify({"error": "Unknown intent"}), 400
+
+#     except Exception as e:
+#         print("🔥 CHAT ERROR:", str(e))
+#         return jsonify({"error": str(e)}), 500
+
+
+# @app.route("/ai-extract-expense", methods=["POST"])
+# def ai_extract_expense():
+#     try:
+#         data = request.json
+#         text = data.get("text")
+
+#         result = call_openai(prompt)
+
+#         return jsonify(result)
+
+#     except Exception as e:
+#         print("ERROR:", e)
+#         return jsonify({
+#             "error": str(e)
+#         }), 500
+
+
+
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
-# =========================
-# 🔥 GET USER CATEGORIES
-# =========================
 def get_user_categories(user_id):
     categories = Category.query.filter_by(
         user_id=user_id,
-        type="expense"   # only expense categories
+        type="expense"
     ).all()
 
     return [c.name for c in categories]
 
 
 # =========================
-# 🎤 TRANSCRIBE API
+# MAIN API (VOICE + TEXT)
 # =========================
 @app.route("/transcribe", methods=["POST"])
 def transcribe():
     try:
         print("🔥 REQUEST RECEIVED")
 
-        # =========================
-        # ✅ CHECK FILE
-        # =========================
-        if "file" not in request.files:
-            return jsonify({"error": "No file uploaded"}), 400
-
-        file = request.files["file"]
-
-        # =========================
-        # ✅ GET USER ID
-        # =========================
         user_id = request.form.get("userId")
-
         if not user_id:
             return jsonify({"error": "Missing userId"}), 400
 
         user_id = int(user_id)
 
-        print("👤 USER ID:", user_id)
+        text = None
 
-        # =========================
-        # ✅ SAVE AUDIO
-        # =========================
-        filepath = "temp.m4a"
-        file.save(filepath)
+        # ======================
+        # AUDIO
+        # ======================
+        if "file" in request.files:
+            file = request.files["file"]
+            filepath = "temp.m4a"
+            file.save(filepath)
 
-        # =========================
-        # 🎤 WHISPER
-        # =========================
-        with open(filepath, "rb") as audio:
-            transcript = client.audio.transcriptions.create(
-                model="gpt-4o-mini-transcribe",
-                file=audio
-            )
+            with open(filepath, "rb") as audio:
+                transcript = client.audio.transcriptions.create(
+                    model="gpt-4o-mini-transcribe",
+                    file=audio
+                )
 
-        text = transcript.text
-        print("🗣 TRANSCRIBED TEXT:", text)
+            text = transcript.text
+            print("🗣 TRANSCRIBED:", text)
 
-        # =========================
-        # 📂 GET USER CATEGORIES
-        # =========================
+        # ======================
+        # TEXT
+        # ======================
+        else:
+            data = request.get_json(silent=True) or {}
+            text = request.form.get("text") or data.get("text")
+
+        if not text:
+            return jsonify({"error": "No input text"}), 400
+
+        print("🧠 FINAL TEXT:", text)
+
         categories = get_user_categories(user_id)
-
-        # fallback (important)
         if not categories:
-            categories = ["food", "transport", "billing"]
+            categories = ["food", "transport", "shopping", "billing"]
 
-        print("📂 USER CATEGORIES:", categories)
-
-        # =========================
-        # 🧠 GPT PROMPT
-        # =========================
         today = datetime.today().strftime("%Y-%m-%d")
 
         prompt = get_expense_prompt(text, today, categories)
 
-        print("🧠 PROMPT SENT TO AI")
+        chat = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"}
+        )
+
+        result = json.loads(chat.choices[0].message.content)
+
+        print("✅ PARSED:", result)
+
+        return jsonify({
+            "text": text,
+            "result": result
+        })
+
+    except Exception as e:
+        print("🔥 ERROR:", str(e))
+        return jsonify({"error": str(e)}), 500
+
+
+@app.post("/ai-extract-budget")
+def ai_extract_budget():
+    try:
+        data = request.json
+        text = data.get("text", "")
+        user_id = data.get("userId")
+
+        print("\n==============================")
+        print("📩 REQUEST RECEIVED (BUDGET)")
+        print("🧠 RAW TEXT:", text)
+
+        if not user_id:
+            return jsonify({"error": "Missing userId"}), 400
+
+        text = text.lower()
+        print("🧠 FINAL TEXT:", text)
 
         # =========================
-        # 🤖 GPT CALL
+        # GET USER CATEGORIES
+        # =========================
+        categories = get_user_categories(user_id)
+
+        if not categories:
+            categories = [
+                "food", "transport", "shopping",
+                "entertainment", "health", "billing"
+            ]
+
+        categories = [c.lower().strip() for c in categories]
+
+        print("📂 USER CATEGORIES:", categories)
+
+        today = datetime.today().strftime("%Y-%m-%d")
+
+        # =========================
+        # IMPORT PROMPT FUNCTION
+        # =========================
+        from prompts import get_budget_prompt
+
+        prompt = get_budget_prompt(text, today, categories)
+
+        # =========================
+        # OPENAI CALL
         # =========================
         chat = client.chat.completions.create(
             model="gpt-4o-mini",
@@ -1321,37 +1631,98 @@ def transcribe():
             response_format={"type": "json_object"}
         )
 
-        result = chat.choices[0].message.content
-        print("🤖 RAW GPT RESULT:", result)
+        result = json.loads(chat.choices[0].message.content)
 
-        # =========================
-        # ✅ PARSE JSON
-        # =========================
-        try:
-            parsed = json.loads(result)
-        except:
-            parsed = {
-                "amount": None,
-                "note": "General expense",
-                "suggestedCategory": "",
-                "date": today
-            }
+        print("✅ PARSED (BUDGET):", result)
+        print("==============================\n")
 
-        print("✅ FINAL PARSED:", parsed)
-
-        # =========================
-        # ✅ RESPONSE
-        # =========================
-        return jsonify({
-            "text": text,
-            "result": parsed
-        })
+        return jsonify(result), 200
 
     except Exception as e:
-        print("🔥 BACKEND ERROR:", str(e))
-        return jsonify({
-            "error": str(e)
-        }), 500
+        print("🔥 ERROR:", str(e))
+        return jsonify({"error": str(e)}), 500
+
+
+
+@app.post("/ai-extract-regular-payment")
+def ai_extract_regular_payment():
+    data = request.json
+    text = data.get("text", "")
+
+    print("\n==============================")
+    print("📩 REQUEST RECEIVED (REGULAR PAYMENT)")
+    print("🧠 RAW TEXT:", text)
+
+    text = text.lower()
+    print("🧠 FINAL TEXT:", text)
+
+    amount = 0
+    title = "Untitled"
+    category = "General"
+    type_ = "expense"
+    frequency = "Monthly"
+
+    # -------------------------
+    # AMOUNT
+    # -------------------------
+    digit_match = re.search(r"(\d+(\.\d{1,2})?)", text)
+    if digit_match:
+        amount = float(digit_match.group())
+    else:
+        try:
+            amount = float(w2n.word_to_num(text))
+        except:
+            amount = 0
+
+    # -------------------------
+    # TITLE
+    # -------------------------
+    cleaned = re.sub(r"\d+(\.\d{1,2})?", "", text)
+    cleaned = cleaned.replace("monthly", "").replace("weekly", "").replace("daily", "").replace("yearly", "")
+    title = cleaned.strip().title()[:30] if cleaned.strip() else "Untitled"
+
+    # -------------------------
+    # CATEGORY
+    # -------------------------
+    known_categories = [
+        "food", "transport", "shopping",
+        "entertainment", "health", "billing"
+    ]
+
+    for c in known_categories:
+        if c in text:
+            category = c.capitalize()
+            break
+
+    # -------------------------
+    # TYPE
+    # -------------------------
+    if "income" in text or "salary" in text:
+        type_ = "income"
+
+    # -------------------------
+    # FREQUENCY
+    # -------------------------
+    if "daily" in text:
+        frequency = "Daily"
+    elif "weekly" in text:
+        frequency = "Weekly"
+    elif "yearly" in text or "annually" in text:
+        frequency = "Yearly"
+
+    result = {
+        "title": title,
+        "amount": amount,
+        "category": category,
+        "type": type_,
+        "frequency": frequency
+    }
+
+    print("✅ PARSED (REGULAR PAYMENT):", result)
+    print("==============================\n")
+
+    return jsonify(result), 200
+
 
 
 # -------------------- RUN SERVER --------------------

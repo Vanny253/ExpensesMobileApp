@@ -12,10 +12,10 @@ import {
 
 import BottomTabs from "../../components/_BottomTabs";
 import { getBudgets } from "../../api/budgetApi";
+import { getCategories } from "../../api/categoryApi";
 import { useUser } from "../../context/UserContext";
 import { useRouter } from "expo-router";
 import BackgroundWrapper from "../../components/backgroundWrapper";
-import AppHeader from "../../components/appHeader";
 
 export default function BudgetScreen() {
   const { user } = useUser();
@@ -23,6 +23,7 @@ export default function BudgetScreen() {
 
   const [budgets, setBudgets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [categoryMap, setCategoryMap] = useState({});
 
   const loadBudgets = async () => {
     if (!user) {
@@ -51,7 +52,32 @@ export default function BudgetScreen() {
 
   useEffect(() => {
     loadBudgets();
+    loadCategoryMap()
   }, [user]);
+
+  const getCategoryName = (value) => {
+    return categoryMap[value] || value;
+  };
+
+  const loadCategoryMap = async () => {
+    if (!user) return;
+
+    try {
+      const dbCats = await getCategories(user.user_id, "expense");
+
+      const map = {};
+
+      dbCats.forEach((c) => {
+        // supports both id-based and name-based systems
+        map[c.id] = c.name;
+        map[c.name] = c.name;
+      });
+
+      setCategoryMap(map);
+    } catch (err) {
+      console.log("CATEGORY MAP ERROR:", err);
+    }
+  };
 
   const handleOpenDetail = (budget) => {
     router.push({
@@ -101,7 +127,9 @@ export default function BudgetScreen() {
               renderItem={({ item }) => (
                 <TouchableOpacity onPress={() => handleOpenDetail(item)}>
                   <View style={styles.card}>
-                    <Text style={styles.category}>{item.category}</Text>
+                    <Text style={styles.category}>
+                      {getCategoryName(item.category)}
+                    </Text>
                     <Text>Budget: RM{item.budget.toFixed(2)}</Text>
                     <Text>Spent: RM{item.spent.toFixed(2)}</Text>
                     <Text>Remaining: RM{item.remaining.toFixed(2)}</Text>
