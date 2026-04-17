@@ -256,9 +256,9 @@ export default function ChatbotScreen() {
                 role: "assistant",
                 text: "👋 What can I help you?",
                 actions: [
-                  "Add Expense",
-                  "Add Budget",
-                  "Add Regular Payment"
+                  "Add New Expense",
+                  "Add New Budget",
+                  "Add New Regular Payment"
                 ],
                 time: new Date().toLocaleTimeString(),
               },
@@ -483,19 +483,25 @@ export default function ChatbotScreen() {
 
 
   
-const sendAudioToBackend = async (uri) => {
+const sendAudioToBackend = async (uri = null, textInput = null) => {
   setLoading(true);
 
   try {
     console.log("🎤 UPLOADING AUDIO:", uri);
 
-    const formData = new FormData();
+const formData = new FormData();
 
-    formData.append("file", {
-      uri,
-      name: "voice.m4a",
-      type: "audio/m4a",
-    });
+    if (uri) {
+      formData.append("file", {
+        uri,
+        name: "voice.m4a",
+        type: "audio/m4a",
+      });
+    }
+
+    if (textInput) {
+      formData.append("text", textInput);
+    }
 
     formData.append("userId", String(user.user_id));
 
@@ -555,7 +561,7 @@ const sendAudioToBackend = async (uri) => {
 
     console.log("🗣 TRANSCRIBED:", userText);
 
-    handleUserInput(userText, "voice");
+    // handleUserInput(userText, "voice");
 
   } catch (err) {
     console.log("❌ Voice error:", err);
@@ -573,9 +579,6 @@ const sendAudioToBackend = async (uri) => {
 };
 
 
-// const handleVoiceResult = (transcribedText) => {
-//   handleUserInput(transcribedText, "voice");
-// };
 
 ////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////
@@ -608,7 +611,7 @@ const handleUserInput = async (input, source = "text") => {
     return;
   }
 
-  sendMessageToAI(finalText);
+  await sendAudioToBackend(null, finalText);
 };
 
 

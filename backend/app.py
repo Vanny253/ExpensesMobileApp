@@ -1541,6 +1541,9 @@ load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
+# =========================
+# MISSING FUNCTION (ADDED)
+# =========================
 def get_user_categories(user_id):
     categories = Category.query.filter_by(
         user_id=user_id,
@@ -1553,9 +1556,6 @@ def get_user_categories(user_id):
 # =========================
 # MAIN API (VOICE + TEXT)
 # =========================
-
-
-
 @app.route("/transcribe", methods=["POST"])
 def transcribe():
     try:
@@ -1594,13 +1594,11 @@ def transcribe():
             text = request.form.get("text") or data.get("text")
 
         if not text:
-            return jsonify({
-                "error": "No input text"
-            }), 400
+            return jsonify({"error": "No input text"}), 400
 
         print("🧠 FINAL TEXT:", text)
 
-        final_text = text  # ✅ IMPORTANT FIX
+        final_text = text
 
         # =========================
         # INTENT DETECTION
@@ -1665,53 +1663,38 @@ Return JSON:
             today_dt = datetime.today()
             text_lower = text.lower()
 
-            # =========================
-            # THIS WEEK (Monday → today)
-            # =========================
             if "this week" in text_lower:
-                start = (today_dt - timedelta(days=today_dt.weekday())).replace(
+                # Sunday is start of week
+                days_since_sunday = (today_dt.weekday() + 1) % 7
+                start = (today_dt - timedelta(days=days_since_sunday)).replace(
                     hour=0, minute=0, second=0, microsecond=0
                 )
-                end = today_dt.replace(
-                    hour=23, minute=59, second=59, microsecond=999999
-                )
+                end = today_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
 
-            # =========================
-            # LAST WEEK (Monday → Sunday)
-            # =========================
             elif "last week" in text_lower:
-                start = (today_dt - timedelta(days=today_dt.weekday() + 7)).replace(
+                # current week Sunday
+                days_since_sunday = (today_dt.weekday() + 1) % 7
+                this_week_sunday = (today_dt - timedelta(days=days_since_sunday)).replace(
                     hour=0, minute=0, second=0, microsecond=0
                 )
-                end = (start + timedelta(days=6)).replace(
-                    hour=23, minute=59, second=59, microsecond=999999
-                )
 
-            # =========================
-            # TODAY
-            # =========================
+                # last week range
+                start = this_week_sunday - timedelta(days=7)
+                end = this_week_sunday - timedelta(seconds=1)
+
             elif "today" in text_lower:
                 start = today_dt.replace(hour=0, minute=0, second=0, microsecond=0)
                 end = today_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
 
-            # =========================
-            # YESTERDAY
-            # =========================
             elif "yesterday" in text_lower:
                 yesterday = today_dt - timedelta(days=1)
                 start = yesterday.replace(hour=0, minute=0, second=0, microsecond=0)
                 end = yesterday.replace(hour=23, minute=59, second=59, microsecond=999999)
 
-            # =========================
-            # THIS MONTH
-            # =========================
             elif "this month" in text_lower:
                 start = today_dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
                 end = today_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
 
-            # =========================
-            # LAST MONTH
-            # =========================
             elif "last month" in text_lower:
                 first_day_this_month = today_dt.replace(day=1)
                 last_month_last_day = first_day_this_month - timedelta(days=1)
@@ -1719,28 +1702,13 @@ Return JSON:
                 start = last_month_last_day.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
                 end = last_month_last_day.replace(hour=23, minute=59, second=59, microsecond=999999)
 
-            # =========================
-            # LAST 7 DAYS
-            # =========================
             elif "last 7 days" in text_lower:
-                start = (today_dt - timedelta(days=6)).replace(
-                    hour=0, minute=0, second=0, microsecond=0
-                )
+                start = (today_dt - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
                 end = today_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
 
-            # =========================
-            # DEFAULT (fallback = this week)
-            # =========================
             else:
-                start = (today_dt - timedelta(days=today_dt.weekday())).replace(
-                    hour=0, minute=0, second=0, microsecond=0
-                )
-                end = today_dt.replace(
-                    hour=23, minute=59, second=59, microsecond=999999
-                )
-
-            print("📅 START:", start)
-            print("📅 END:", end)
+                start = (today_dt - timedelta(days=today_dt.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+                end = today_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
 
             total = db.session.query(func.sum(Expense.amount)).filter(
                 Expense.user_id == user_id,
@@ -1748,69 +1716,105 @@ Return JSON:
                 Expense.date <= end
             ).scalar() or 0
 
-            # =========================
-            # FORMAT ANSWER TEXT
-            # =========================
-            if start.date() == end.date():
-                date_text = start.strftime("%d %b %Y")
-                answer_text = f"You spent RM{total:.2f} on {date_text}"
-            else:
-                start_text = start.strftime("%d %b %Y")
-                end_text = end.strftime("%d %b %Y")
-                answer_text = f"You spent RM{total:.2f} from {start_text} to {end_text}"
+            return jsonify({
+            "type": "answer",
+            "text": text,
+            "intent": intent,
+            "date_range": {
+                "start": start.strftime("%Y-%m-%d"),
+                "end": end.strftime("%Y-%m-%d")
+            },
+            "answer": f"You spent RM{total:.2f} from {start.strftime('%d %b %Y')} to {end.strftime('%d %b %Y')}"
+        })
+
+        # =========================
+        # QUERY SUMMARY / CATEGORY
+        # =========================
+        elif intent in ["query_summary", "query_category"]:
+
+            today_dt = datetime.today()
+            text_lower = text.lower()
 
             # =========================
-            # RETURN
+            # DATE RANGE LOGIC
+            # =========================
+            if "last week" in text_lower:
+                # last full week (Mon–Sun)
+                start = (today_dt - timedelta(days=today_dt.weekday() + 7)).replace(
+                    hour=0, minute=0, second=0, microsecond=0
+                )
+                end = start + timedelta(days=6, hours=23, minutes=59, seconds=59)
+
+            elif "this week" in text_lower:
+                start = (today_dt - timedelta(days=today_dt.weekday())).replace(
+                    hour=0, minute=0, second=0, microsecond=0
+                )
+                end = today_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+            elif "last month" in text_lower:
+                first_day_this_month = today_dt.replace(day=1)
+                last_month_last_day = first_day_this_month - timedelta(days=1)
+
+                start = last_month_last_day.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                end = last_month_last_day.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+            elif "this month" in text_lower:
+                start = today_dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                end = today_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+            else:
+                # fallback = this month
+                start = today_dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                end = today_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+            # =========================
+            # QUERY EXPENSE DATA
+            # =========================
+            result = db.session.query(
+                Expense.category,
+                func.sum(Expense.amount).label("total")
+            ).filter(
+                Expense.user_id == user_id,
+                Expense.date >= start,
+                Expense.date <= end
+            ).group_by(Expense.category)\
+            .order_by(func.sum(Expense.amount).desc())\
+            .first()
+
+            # =========================
+            # NO DATA HANDLING
+            # =========================
+            if not result:
+                return jsonify({
+                    "type": "answer",
+                    "text": text,
+                    "intent": intent,
+                    "answer": "No expenses found",
+                    "date_range": {
+                        "start": start.strftime("%Y-%m-%d"),
+                        "end": end.strftime("%Y-%m-%d")
+                    }
+                })
+
+            category, total = result
+
+            # =========================
+            # RESPONSE (SAFE FOR ALL INTENTS)
             # =========================
             return jsonify({
                 "type": "answer",
                 "text": text,
                 "intent": intent,
-                "answer": answer_text
+                "date_range": {
+                    "start": start.strftime("%Y-%m-%d"),
+                    "end": end.strftime("%Y-%m-%d")
+                },
+                "answer": f"You spent the most on {category} (RM{total:.2f}) from {start.strftime('%d %b %Y')} to {end.strftime('%d %b %Y')}"
             })
-
-        # =========================
-        # QUERY SUMMARY
-        # =========================
-        elif intent == "query_summary":
-            result = db.session.query(
-                Expense.category,
-                func.sum(Expense.amount).label("total")
-            ).filter(
-                Expense.user_id == user_id
-            ).group_by(Expense.category)\
-             .order_by(func.sum(Expense.amount).desc())\
-             .first()
-
-            if not result:
-                return jsonify({
-                    "type": "answer",
-                    "text": final_text,
-                    "intent": intent,
-                    "answer": "No expenses found"
-                })
-
-            return jsonify({
-                "type": "answer",
-                "text": final_text,
-                "intent": intent,
-                "answer": f"You spend the most on {result.category}"
-            })
-
-        # =========================
-        # UNKNOWN
-        # =========================
-        return jsonify({
-            "type": "answer",
-            "text": final_text,
-            "intent": intent,
-            "answer": "Sorry, I didn't understand that."
-        })
 
     except Exception as e:
         print("🔥 ERROR:", str(e))
         return jsonify({"error": str(e)}), 500
-
 
 
 
