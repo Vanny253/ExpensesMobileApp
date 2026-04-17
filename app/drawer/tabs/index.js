@@ -66,14 +66,22 @@ export default function MainScreen() {
         ? [...DEFAULT_INCOME_CATEGORIES, ...incomeCategories]
         : [...DEFAULT_EXPENSE_CATEGORIES, ...expenseCategories];
 
-    // 1. match by ID ONLY (main rule)
-    let found = list.find((c) => String(c.id) === String(value));
+    const val = String(value).toLowerCase().trim();
 
-    // 2. fallback ONLY for old NAME data
+    // 1. match by ID (BEST CASE)
+    let found = list.find((c) => String(c.id).toLowerCase() === val);
+
+    // 2. match by current name
     if (!found) {
       found = list.find(
-        (c) =>
-          c.name?.toLowerCase() === String(value).toLowerCase()
+        (c) => c.name?.toLowerCase() === val
+      );
+    }
+
+    // 3. match by OLD NAME inside category table (important fix)
+    if (!found) {
+      found = list.find(
+        (c) => c.old_name?.toLowerCase?.() === val
       );
     }
 
