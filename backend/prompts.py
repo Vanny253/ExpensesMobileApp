@@ -135,51 +135,25 @@ Return JSON ONLY:
 
 
 
-def detect_intent_prompt(user_input):
+def get_chat_intent_prompt(text):
     return f"""
-Classify the user intent.
+You are an AI intent classifier.
+
+Classify the user's request into ONE of these intents:
+
+1. add_expense
+2. add_income
+3. query_total_spent
+4. query_category_spent
+5. query_summary
+6. unknown
 
 User input:
-"{user_input}"
+"{text}"
 
-Return JSON:
-
-{{
-  "intent": "extract" | "update" | "confirm" | "chat"
-}}
-
-Rules:
-- New expense → extract
-- Modify existing → update
-- "save", "confirm", "done" → confirm
-- "chat" = normal conversation (hi, hello, how are you)
-
-"""
-
-
-def update_expense_prompt(user_input, current_expense):
-    return f"""
-You are an expense editing assistant.
-
-Current expense:
-{json.dumps(current_expense)}
-
-User instruction:
-"{user_input}"
-
-Return JSON:
+Return JSON only:
 
 {{
-  "amount": number,
-  "note": string,
-  "suggestedCategory": string,
-  "date": "YYYY-MM-DD",
-  "message": string
+  "intent": "one_of_the_above"
 }}
-
-Rules:
-- "title" = "note"
-- Only update requested field
-- message = short confirmation like:
-  "Title updated to aeroplane"
 """

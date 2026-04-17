@@ -1,5 +1,4 @@
-// app/drawer/tabs/addBudget.js
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,37 +9,45 @@ import {
 } from "react-native";
 
 import { Picker } from "@react-native-picker/picker";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
+
 import { useUser } from "../context/UserContext";
 import { getCategories } from "../api/categoryApi";
 import { addBudget } from "../api/budgetApi";
 
 import AppHeader from "../components/appHeader";
 import BackgroundWrapper from "../components/backgroundWrapper";
-import {
-  DEFAULT_EXPENSE_CATEGORIES,
-} from "../components/defaultIcon";
-
-import { useLocalSearchParams } from "expo-router";
-import { useFocusEffect } from "@react-navigation/native";
-import { useCallback } from "react";
+import { DEFAULT_EXPENSE_CATEGORIES } from "../components/defaultIcon";
 
 export default function AddBudget() {
   const { user } = useUser();
   const router = useRouter();
+  const params = useLocalSearchParams();
 
   const [category, setCategory] = useState("");
   const [amount, setAmount] = useState("");
   const [categories, setCategories] = useState([]);
-  const params = useLocalSearchParams();
   const [prefilled, setPrefilled] = useState(false);
 
- 
+  // =========================
+  // RESET ON FOCUS
+  // =========================
+  useFocusEffect(
+    useCallback(() => {
+      setAmount("");
+      setCategory("");
+      setPrefilled(false);
+    }, [])
+  );
 
-
+  // =========================
+  // PREFILL FROM AI / VOICE
+  // =========================
   useEffect(() => {
     if (prefilled) return;
     if (!params) return;
+    if (categories.length === 0) return; // 🔥 IMPORTANT FIX
 
     const scannedAmount = params.scannedAmount ?? params.amount;
     const scannedCategory = params.scannedCategory;
@@ -53,68 +60,64 @@ export default function AddBudget() {
       const normalized = scannedCategory.toLowerCase().trim();
 
       const matched = categories.find(
-        (c) => c.name.toLowerCase() === normalized
+        (c) =>
+          c.id === normalized ||     // 👈 IMPORTANT
+          c.name.toLowerCase() === normalized
       );
 
       if (matched) {
-        setCategory(matched.id); // IMPORTANT: use ID
+        setCategory(matched.id);
       } else {
-        setCategory(""); // force user to pick
+        setCategory("");
       }
     }
+
     setPrefilled(true);
-  }, [params]);
+  }, [params, categories]);
 
-  useFocusEffect(
-    useCallback(() => {
-      setAmount("");
-      setCategory("");
-      setPrefilled(false);
-    }, [])
-  );
+  // =========================
+  // LOAD CATEGORIES
+  // =========================
+ const loadCategories = async () => {
+  if (!user) return;
 
+  try {
+    const dbCategories = await getCategories(user.user_id, "expense");
 
-  const loadCategories = async () => {
-    if (!user) return;
+    const safeDb = (dbCategories || []).map((c) => ({
+      id: c?.id ? String(c.id).toLowerCase() : "",
+      name: c?.name || "",
+    }));
 
-    try {
-      const dbCategories = await getCategories(user.user_id, "expense");
+    const defaultCats = DEFAULT_EXPENSE_CATEGORIES.map((c) => ({
+      id: String(c.id).toLowerCase(),
+      name: c.name,
+    }));
 
-      const dbMapped = dbCategories.map((c) => ({
-        id: c.id,
-        name: c.name,
-      }));
+    const merged = [...defaultCats, ...safeDb];
 
-      const defaultCats = DEFAULT_EXPENSE_CATEGORIES.map((c, index) => ({
-        id: `default-${index}`,
-        name: c.name,
-      }));
+    const unique = merged.filter(
+      (item, index, self) =>
+        item.id && index === self.findIndex((t) => t.id === item.id)
+    );
 
-      // merge
-      const merged = [...defaultCats, ...dbMapped];
+    setCategories(unique);
 
-      // remove duplicates by ID (IMPORTANT FIX)
-      const unique = merged.filter(
-        (item, index, self) =>
-          index === self.findIndex((t) => t.id === item.id)
-      );
-
-      setCategories(unique);
-
-      // auto select FIRST ID (NOT NAME)
-      if (!category && unique.length > 0) {
-        setCategory(unique[0].name);
-      }
-    } catch (err) {
-      console.log("CATEGORY LOAD ERROR:", err);
-      Alert.alert("Error", "Failed to load categories");
+    if (!category && unique.length > 0) {
+      setCategory(unique[0].id);
     }
-  };
+  } catch (err) {
+    console.log("CATEGORY LOAD ERROR:", err);
+  }
+};
 
   useEffect(() => {
     loadCategories();
   }, [user]);
 
+  // =========================
+  // SAVE BUDGET
+  // =========================
   const handleAddBudget = async () => {
     if (!user) {
       Alert.alert("Error", "Please login first");
@@ -144,16 +147,15 @@ export default function AddBudget() {
     }
   };
 
+  // =========================
+  // UI
+  // =========================
   return (
     <View style={styles.container}>
-      <AppHeader
-        title="Add Budget"
-        backRoute="/drawer/budget"
-      />
+      <AppHeader title="Add Budget" backRoute="/drawer/budget" />
 
       <BackgroundWrapper>
         <View style={styles.formContainer}>
-
           <Text style={styles.label}>Category</Text>
 
           <View style={styles.pickerContainer}>
@@ -181,7 +183,6 @@ export default function AddBudget() {
           >
             <Text style={styles.saveButtonText}>Save Budget</Text>
           </TouchableOpacity>
-
         </View>
       </BackgroundWrapper>
     </View>

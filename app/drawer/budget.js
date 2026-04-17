@@ -16,6 +16,7 @@ import { getCategories } from "../../api/categoryApi";
 import { useUser } from "../../context/UserContext";
 import { useRouter } from "expo-router";
 import BackgroundWrapper from "../../components/backgroundWrapper";
+import { DEFAULT_EXPENSE_CATEGORIES } from "../../components/defaultIcon";
 
 export default function BudgetScreen() {
   const { user } = useUser();
@@ -52,31 +53,66 @@ export default function BudgetScreen() {
 
   useEffect(() => {
     loadBudgets();
-    loadCategoryMap()
+    loadCategoryMap();
   }, [user]);
 
+  // =========================
+  // CATEGORY MAP (FIXED)
+  // =========================
+const loadCategoryMap = async () => {
+  if (!user) return;
+
+  try {
+    const dbCats = await getCategories(user.user_id, "expense");
+
+    const map = {};
+
+    // SAFE DB categories (FIXED CRASH)
+    dbCats.forEach((c) => {
+      const id = String(c?.id ?? "").toLowerCase().trim();
+      const name = c?.name || id;
+
+      if (id) map[id] = name;
+      if (name) map[name.toLowerCase()] = name;
+    });
+
+    // DEFAULT categories (SAFE)
+    DEFAULT_EXPENSE_CATEGORIES.forEach((c) => {
+      map[c.id.toLowerCase()] = c.name;
+      map[c.name.toLowerCase()] = c.name;
+    });
+
+    setCategoryMap(map);
+  } catch (err) {
+    console.log("CATEGORY MAP ERROR:", err);
+  }
+};
+
+
+
+  // =========================
+  // GET CATEGORY NAME
+  // =========================
   const getCategoryName = (value) => {
-    return categoryMap[value] || value;
-  };
+    if (!value) return "-";
 
-  const loadCategoryMap = async () => {
-    if (!user) return;
+    const key = String(value).toLowerCase().trim();
 
-    try {
-      const dbCats = await getCategories(user.user_id, "expense");
+    // 1. direct match (DB + default categories)
+    if (categoryMap[key]) return categoryMap[key];
 
-      const map = {};
+    // 2. handle default-x fallback safely
+    if (key.startsWith("default-")) {
+      const index = parseInt(key.split("-")[1], 10) - 1;
 
-      dbCats.forEach((c) => {
-        // supports both id-based and name-based systems
-        map[c.id] = c.name;
-        map[c.name] = c.name;
-      });
-
-      setCategoryMap(map);
-    } catch (err) {
-      console.log("CATEGORY MAP ERROR:", err);
+      const match = DEFAULT_EXPENSE_CATEGORIES[index];
+      if (match) return match.name;
     }
+
+    // 3. fallback cleanup for custom categories
+    return key
+      .replace(/[-_]/g, " ")
+      .replace(/\b\w/g, (l) => l.toUpperCase());
   };
 
   const handleOpenDetail = (budget) => {
@@ -93,7 +129,6 @@ export default function BudgetScreen() {
       },
     });
   };
-
 
   if (!user) {
       return (

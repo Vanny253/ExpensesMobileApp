@@ -5,7 +5,7 @@ from flask_cors import CORS
 from config import SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS
 from models import db, Expense, Income, User, Budget, Category, RegularPayment
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy import func
 from scheduler import register_tasks
 from sqlalchemy.exc import IntegrityError
@@ -26,7 +26,6 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from datetime import datetime
 from prompts import get_expense_prompt
-from prompts import detect_intent_prompt
 from prompts import get_budget_prompt
 import json
 from models import Category
@@ -429,6 +428,7 @@ def update_user(user_id):
 @app.post("/budget")
 def add_budget():
     data = request.json
+
     user_id = data.get("user_id")
     category = data.get("category")
     amount = data.get("amount")
@@ -438,9 +438,47 @@ def add_budget():
     if not all([user_id, category, amount, month, year]):
         return jsonify({"message": "Missing required fields"}), 400
 
+
+    # =========================
+    # DEFAULT CATEGORY FIX
+    # =========================
+    DEFAULT_CATEGORIES = [
+        "food",
+        "transport",
+        "billing",
+        "shopping",
+        "health",
+        "entertainment"
+    ]
+
+    def normalize_category(cat):
+        if not cat:
+            return "general"
+
+        cat = str(cat).lower().strip()
+
+        # already valid category
+        if cat in DEFAULT_CATEGORIES:
+            return cat
+
+        # convert default-1 style
+        if cat.startswith("default-"):
+            try:
+                index = int(cat.split("-")[1]) - 1
+                if 0 <= index < len(DEFAULT_CATEGORIES):
+                    return DEFAULT_CATEGORIES[index]
+            except:
+                pass
+
+        return cat
+
+
+    clean_category = normalize_category(category)
+
+
     budget = Budget(
         user_id=user_id,
-        category=category,
+        category=clean_category,
         amount=amount,
         month=month,
         year=year,
@@ -450,7 +488,11 @@ def add_budget():
     db.session.add(budget)
     db.session.commit()
 
-    return jsonify({"message": "Budget created", "budget_id": budget.id}), 201
+    return jsonify({
+        "message": "Budget created",
+        "budget_id": budget.id,
+        "category": clean_category
+    }), 201
 
 
 
@@ -1511,6 +1553,9 @@ def get_user_categories(user_id):
 # =========================
 # MAIN API (VOICE + TEXT)
 # =========================
+
+
+
 @app.route("/transcribe", methods=["POST"])
 def transcribe():
     try:
@@ -1542,38 +1587,224 @@ def transcribe():
             print("🗣 TRANSCRIBED:", text)
 
         # ======================
-        # TEXT
+        # TEXT INPUT
         # ======================
         else:
             data = request.get_json(silent=True) or {}
             text = request.form.get("text") or data.get("text")
 
         if not text:
-            return jsonify({"error": "No input text"}), 400
+            return jsonify({
+                "error": "No input text"
+            }), 400
 
         print("🧠 FINAL TEXT:", text)
 
+        final_text = text  # ✅ IMPORTANT FIX
+
+        # =========================
+        # INTENT DETECTION
+        # =========================
+        intent_prompt = f"""
+Classify the user's intent.
+
+User input:
+"{text}"
+
+Return JSON:
+{{
+  "intent": "add_expense | query_total | query_category | query_summary | unknown"
+}}
+"""
+
+        intent_res = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": intent_prompt}],
+            response_format={"type": "json_object"}
+        )
+
+        intent_data = json.loads(intent_res.choices[0].message.content)
+        intent = intent_data.get("intent")
+
+        print("🧠 INTENT:", intent)
+
+        # =========================
+        # CATEGORY LIST
+        # =========================
         categories = get_user_categories(user_id)
         if not categories:
             categories = ["food", "transport", "shopping", "billing"]
 
         today = datetime.today().strftime("%Y-%m-%d")
 
-        prompt = get_expense_prompt(text, today, categories)
+        # =========================
+        # ADD EXPENSE
+        # =========================
+        if intent == "add_expense":
+            prompt = get_expense_prompt(text, today, categories)
 
-        chat = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            response_format={"type": "json_object"}
-        )
+            chat = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                response_format={"type": "json_object"}
+            )
 
-        result = json.loads(chat.choices[0].message.content)
+            result = json.loads(chat.choices[0].message.content)
 
-        print("✅ PARSED:", result)
+            return jsonify({
+                "type": "expense",
+                "text": final_text,
+                "intent": intent,
+                "result": result
+            })
 
+        # =========================
+        # QUERY TOTAL
+        # =========================
+        elif intent == "query_total":
+            today_dt = datetime.today()
+            text_lower = text.lower()
+
+            # =========================
+            # THIS WEEK (Monday → today)
+            # =========================
+            if "this week" in text_lower:
+                start = (today_dt - timedelta(days=today_dt.weekday())).replace(
+                    hour=0, minute=0, second=0, microsecond=0
+                )
+                end = today_dt.replace(
+                    hour=23, minute=59, second=59, microsecond=999999
+                )
+
+            # =========================
+            # LAST WEEK (Monday → Sunday)
+            # =========================
+            elif "last week" in text_lower:
+                start = (today_dt - timedelta(days=today_dt.weekday() + 7)).replace(
+                    hour=0, minute=0, second=0, microsecond=0
+                )
+                end = (start + timedelta(days=6)).replace(
+                    hour=23, minute=59, second=59, microsecond=999999
+                )
+
+            # =========================
+            # TODAY
+            # =========================
+            elif "today" in text_lower:
+                start = today_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+                end = today_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+            # =========================
+            # YESTERDAY
+            # =========================
+            elif "yesterday" in text_lower:
+                yesterday = today_dt - timedelta(days=1)
+                start = yesterday.replace(hour=0, minute=0, second=0, microsecond=0)
+                end = yesterday.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+            # =========================
+            # THIS MONTH
+            # =========================
+            elif "this month" in text_lower:
+                start = today_dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                end = today_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+            # =========================
+            # LAST MONTH
+            # =========================
+            elif "last month" in text_lower:
+                first_day_this_month = today_dt.replace(day=1)
+                last_month_last_day = first_day_this_month - timedelta(days=1)
+
+                start = last_month_last_day.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                end = last_month_last_day.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+            # =========================
+            # LAST 7 DAYS
+            # =========================
+            elif "last 7 days" in text_lower:
+                start = (today_dt - timedelta(days=6)).replace(
+                    hour=0, minute=0, second=0, microsecond=0
+                )
+                end = today_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+            # =========================
+            # DEFAULT (fallback = this week)
+            # =========================
+            else:
+                start = (today_dt - timedelta(days=today_dt.weekday())).replace(
+                    hour=0, minute=0, second=0, microsecond=0
+                )
+                end = today_dt.replace(
+                    hour=23, minute=59, second=59, microsecond=999999
+                )
+
+            print("📅 START:", start)
+            print("📅 END:", end)
+
+            total = db.session.query(func.sum(Expense.amount)).filter(
+                Expense.user_id == user_id,
+                Expense.date >= start,
+                Expense.date <= end
+            ).scalar() or 0
+
+            # =========================
+            # FORMAT ANSWER TEXT
+            # =========================
+            if start.date() == end.date():
+                date_text = start.strftime("%d %b %Y")
+                answer_text = f"You spent RM{total:.2f} on {date_text}"
+            else:
+                start_text = start.strftime("%d %b %Y")
+                end_text = end.strftime("%d %b %Y")
+                answer_text = f"You spent RM{total:.2f} from {start_text} to {end_text}"
+
+            # =========================
+            # RETURN
+            # =========================
+            return jsonify({
+                "type": "answer",
+                "text": text,
+                "intent": intent,
+                "answer": answer_text
+            })
+
+        # =========================
+        # QUERY SUMMARY
+        # =========================
+        elif intent == "query_summary":
+            result = db.session.query(
+                Expense.category,
+                func.sum(Expense.amount).label("total")
+            ).filter(
+                Expense.user_id == user_id
+            ).group_by(Expense.category)\
+             .order_by(func.sum(Expense.amount).desc())\
+             .first()
+
+            if not result:
+                return jsonify({
+                    "type": "answer",
+                    "text": final_text,
+                    "intent": intent,
+                    "answer": "No expenses found"
+                })
+
+            return jsonify({
+                "type": "answer",
+                "text": final_text,
+                "intent": intent,
+                "answer": f"You spend the most on {result.category}"
+            })
+
+        # =========================
+        # UNKNOWN
+        # =========================
         return jsonify({
-            "text": text,
-            "result": result
+            "type": "answer",
+            "text": final_text,
+            "intent": intent,
+            "answer": "Sorry, I didn't understand that."
         })
 
     except Exception as e:
@@ -1581,50 +1812,47 @@ def transcribe():
         return jsonify({"error": str(e)}), 500
 
 
+
+
 @app.post("/ai-extract-budget")
 def ai_extract_budget():
     try:
-        data = request.json
+        data = request.json or {}
         text = data.get("text", "")
         user_id = data.get("userId")
-
-        print("\n==============================")
-        print("📩 REQUEST RECEIVED (BUDGET)")
-        print("🧠 RAW TEXT:", text)
 
         if not user_id:
             return jsonify({"error": "Missing userId"}), 400
 
-        text = text.lower()
-        print("🧠 FINAL TEXT:", text)
+        text = text.lower().strip()
 
         # =========================
-        # GET USER CATEGORIES
+        # DEFAULT CATEGORIES (FIXED SYNTAX ERROR)
         # =========================
-        categories = get_user_categories(user_id)
+        DEFAULT_CATEGORIES = [
+            "food",
+            "transport",
+            "billing",
+            "shopping",
+            "health",
+            "entertainment"
+        ]
 
-        if not categories:
-            categories = [
-                "food", "transport", "shopping",
-                "entertainment", "health", "billing"
-            ]
-
+        # =========================
+        # USER CATEGORIES
+        # =========================
+        categories = get_user_categories(user_id) or []
         categories = [c.lower().strip() for c in categories]
 
-        print("📂 USER CATEGORIES:", categories)
-
-        today = datetime.today().strftime("%Y-%m-%d")
+        # merge + remove duplicates
+        all_categories = list(set(DEFAULT_CATEGORIES + categories))
 
         # =========================
-        # IMPORT PROMPT FUNCTION
+        # PROMPT
         # =========================
         from prompts import get_budget_prompt
+        prompt = get_budget_prompt(text, datetime.today().strftime("%Y-%m-%d"), all_categories)
 
-        prompt = get_budget_prompt(text, today, categories)
-
-        # =========================
-        # OPENAI CALL
-        # =========================
         chat = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
@@ -1633,14 +1861,28 @@ def ai_extract_budget():
 
         result = json.loads(chat.choices[0].message.content)
 
-        print("✅ PARSED (BUDGET):", result)
-        print("==============================\n")
+        amount = result.get("amount", 0)
+        category = result.get("category", "general")
 
-        return jsonify(result), 200
+        # =========================
+        # CLEAN CATEGORY (IMPORTANT FIX)
+        # =========================
+        if not category or str(category).lower() == "null":
+            category = "general"
+
+        category = category.lower().strip()
+
+        return jsonify({
+            "amount": amount,
+            "category": category
+        }), 200
 
     except Exception as e:
-        print("🔥 ERROR:", str(e))
-        return jsonify({"error": str(e)}), 500
+        return jsonify({
+            "error": str(e),
+            "amount": 0,
+            "category": "general"
+        }), 500
 
 
 

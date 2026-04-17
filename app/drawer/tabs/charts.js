@@ -362,6 +362,7 @@ export default function ChartScreen() {
             ))}
           </View>
 
+          <View style={{ height: 50 }}>
           {/* SUB BAR */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {[...subPeriodsList].reverse().map((label, i) => {
@@ -435,12 +436,16 @@ export default function ChartScreen() {
             );
           })}
         </ScrollView>
+        </View>
 
           {!user && (
             <Text style={styles.guestText}>
               Guest Mode: Please login to view expense analytics.
             </Text>
           )}
+
+          <View style={{ flex: 1 }}>
+
 
           {/* PIE CHART */}
           <View style={styles.chartWrapper}>
@@ -463,12 +468,14 @@ export default function ChartScreen() {
           </View>
 
           {/* PROGRESS LIST */}
-          <View style={styles.progressContainer}>
+          <ScrollView
+            style={styles.progressContainer}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 20 }}
+          >
             {categoryData.map((item, index) => {
               const percentage =
-                totalAmount > 0
-                  ? (item.population / totalAmount) * 100
-                  : 0;
+                totalAmount > 0 ? (item.population / totalAmount) * 100 : 0;
 
               return (
                 <TouchableOpacity
@@ -508,10 +515,10 @@ export default function ChartScreen() {
                 </TouchableOpacity>
               );
             })}
+          </ScrollView>
           </View>
-
+          </View>
         </View>
-      </View>
     </BackgroundWrapper>
   );
 }
@@ -522,10 +529,10 @@ const styles = StyleSheet.create({
   },
 
   container: {
+    flex: 1,
     paddingTop: 20,
     paddingHorizontal: 25,
   },
-
   topBar: {
     flexDirection: "row",
     justifyContent: "space-around",

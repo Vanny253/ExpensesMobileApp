@@ -103,9 +103,9 @@ export default function ChatbotScreen() {
           role: "assistant",
           text: "👋 What can I help you?",
           actions: [
-            "Add Expense",
-            "Add Budget",
-            "Add Regular Payment"
+            "Add New Expense",
+            "Add New Budget",
+            "Add New Regular Payment"
           ],
           time: new Date().toLocaleTimeString(),
         },
@@ -451,37 +451,39 @@ export default function ChatbotScreen() {
   };
 
     const stopRecording = async () => {
-  try {
-    if (!recordingRef.current) return;
+    try {
+      if (!recordingRef.current) return;
 
-    console.log("🛑 STOP RECORDING");
+      console.log("🛑 STOP RECORDING");
 
-    await recordingRef.current.stopAndUnloadAsync();
+      await recordingRef.current.stopAndUnloadAsync();
 
-    const uri = recordingRef.current.getURI();
+      const uri = recordingRef.current.getURI();
 
-    recordingRef.current = null;
-    setIsRecording(false);
+      recordingRef.current = null;
+      setIsRecording(false);
 
-    // show temporary UI
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "assistant",
-        text: "🎤 Processing voice...",
-        time: new Date().toLocaleTimeString(),
-      },
-    ]);
+      // show temporary UI
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text: "🎤 Processing voice...",
+          time: new Date().toLocaleTimeString(),
+        },
+      ]);
 
-    // ONLY transcribe → then send to chatbot
-    await sendAudioToBackend(uri);
+      // ONLY transcribe → then send to chatbot
+      await sendAudioToBackend(uri);
 
-  } catch (err) {
-    console.log("Stop recording error:", err);
-  }
-};
+    } catch (err) {
+      console.log("Stop recording error:", err);
+    }
+  };
 
-  const sendAudioToBackend = async (uri) => {
+
+  
+const sendAudioToBackend = async (uri) => {
   setLoading(true);
 
   try {
@@ -502,17 +504,58 @@ export default function ChatbotScreen() {
       body: formData,
     });
 
-    const data = await res.json();
+    const textResponse = await res.text();
+    console.log("🔥 RAW RESPONSE:", textResponse);
+
+    let data;
+    try {
+      data = JSON.parse(textResponse);
+    } catch (e) {
+      console.log("❌ NOT JSON:", textResponse);
+      throw new Error("Server did not return JSON");
+    }
 
     if (data.error) throw new Error(data.error);
 
-    const text = data.text;
+    // =========================
+    // 🔥 ALWAYS GET TRANSCRIPT
+    // =========================
+    const userText = data.text || "";
 
-    console.log("🗣 TRANSCRIBED:", text);
+    // =========================
+    // 🧑 SHOW WHAT USER SAID (ALWAYS)
+    // =========================
+    if (userText) {
+      addMessage({
+        role: "user",
+        text: userText,   // 👈 THIS is what you speak
+        time: new Date().toLocaleTimeString(),
+      });
+    }
 
-    // ❗ THIS IS THE KEY CHANGE
-    // treat voice exactly like text message
-    handleUserInput(text, "voice");
+    // =========================
+    // 🤖 CASE 1: CHATBOT ANSWER
+    // =========================
+    if (data.type === "answer") {
+      addMessage({
+        role: "assistant",
+        text: data.answer,
+        time: new Date().toLocaleTimeString(),
+      });
+
+      return;
+    }
+
+    // =========================
+    // 🧠 CASE 2: NORMAL EXPENSE FLOW
+    // =========================
+    if (!userText) {
+      throw new Error("No transcription received");
+    }
+
+    console.log("🗣 TRANSCRIBED:", userText);
+
+    handleUserInput(userText, "voice");
 
   } catch (err) {
     console.log("❌ Voice error:", err);
@@ -529,9 +572,10 @@ export default function ChatbotScreen() {
   setLoading(false);
 };
 
-const handleVoiceResult = (transcribedText) => {
-  handleUserInput(transcribedText, "voice");
-};
+
+// const handleVoiceResult = (transcribedText) => {
+//   handleUserInput(transcribedText, "voice");
+// };
 
 ////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////
@@ -629,6 +673,14 @@ const sendMessageToAI = async (message) => {
       });
     }
 
+    else if (data.intent === "query") {
+    addMessage({
+      role: "assistant",
+      text: data.answer,
+      time: timeNow,
+    });
+  }
+
   } catch (err) {
     console.log("❌ CHAT ERROR:", err);
 
@@ -654,17 +706,17 @@ const handleAction = (action) => {
     time: new Date().toLocaleTimeString(),
   });
 
-  if (action === "Add Budget") {
+  if (action === "Add New Budget") {
     setActiveFlow("budget");
     askBudgetStep1();
   }
 
-  if (action === "Add Expense") {
+  if (action === "Add New Expense") {
     setActiveFlow("expense");
     askExpenseStep1();
   }
 
-  if (action === "Add Regular Payment") {
+  if (action === "Add New Regular Payment") {
     setActiveFlow("regularPayment");
     askRegularPaymentStep1();
   }

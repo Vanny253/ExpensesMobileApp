@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { updateBudget, deleteBudget } from "../api/budgetApi";
+import { DEFAULT_EXPENSE_CATEGORIES } from "../components/defaultIcon";
 
 import AppHeader from "../components/appHeader";
 import BackgroundWrapper from "../components/backgroundWrapper";
@@ -25,9 +26,16 @@ export default function BudgetDetailScreen() {
     budget,
     spent,
     remaining,
-    month,
-    year,
   } = params;
+
+    const defaultCategoryMap = DEFAULT_EXPENSE_CATEGORIES.reduce((map, item, index) => {
+    map[item.id] = item.name;
+
+    // IMPORTANT: handle backend default-1, default-2, etc
+    map[`default-${index + 1}`] = item.name;
+
+    return map;
+  }, {});
 
   const budgetAmount = parseFloat(budget) || 0;
   const spentAmount = parseFloat(spent) || 0;
@@ -57,6 +65,20 @@ export default function BudgetDetailScreen() {
         },
       ]
     );
+  };
+
+  const getCategoryName = (value) => {
+    if (!value) return "-";
+
+    const key = value.toLowerCase().trim();
+
+    // 1. direct match
+    if (defaultCategoryMap[key]) return defaultCategoryMap[key];
+
+    // 2. fallback clean text
+    return value
+      .replace(/[-_]/g, " ")
+      .replace(/\b\w/g, (l) => l.toUpperCase());
   };
 
   const handleUpdate = async () => {
@@ -92,7 +114,9 @@ export default function BudgetDetailScreen() {
 
           <View style={styles.row}>
             <Text style={styles.label}>Category:</Text>
-            <Text style={styles.value}>{category}</Text>
+            <Text style={styles.category}>
+              {getCategoryName(category)}
+            </Text>
           </View>
 
           <View style={styles.row}>
