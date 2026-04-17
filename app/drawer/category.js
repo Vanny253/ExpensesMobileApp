@@ -147,7 +147,6 @@ export default function CategoryScreen() {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.subtitle}>Categories</Text>
 
           {/* ACTIVE */}
           <View style={styles.listContainer}>

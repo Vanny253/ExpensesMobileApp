@@ -25,13 +25,14 @@ import BackgroundWrapper from "../../../components/backgroundWrapper";
 import { useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback } from "react";
-
+import { useRouter } from "expo-router";
 
 const STORAGE_KEY = "removed_categories";
 
 /* ---------------- DROPDOWN COMPONENT ---------------- */
 const CategoryDropdown = ({ data, value, onChange, placeholder }) => {
   const [open, setOpen] = useState(false);
+  
   const selected = data.find((i) => i.id === value);
 
   return (
@@ -81,6 +82,24 @@ const CategoryDropdown = ({ data, value, onChange, placeholder }) => {
               )}
             />
 
+            {/* ⭐ NEW: MORE CATEGORY BUTTON */}
+            <TouchableOpacity
+              style={{
+                paddingVertical: 15,
+                borderTopWidth: 1,
+                borderTopColor: "#eee",
+                alignItems: "center",
+              }}
+              onPress={() => {
+                setOpen(false);
+                router.push("/drawer/category");
+              }}
+            >
+              <Text style={{ color: "#007AFF", fontWeight: "bold" }}>
+                + More Category
+              </Text>
+            </TouchableOpacity>
+
             <TouchableOpacity onPress={() => setOpen(false)}>
               <Text style={{ textAlign: "center", marginTop: 10, color: "red" }}>
                 Close
@@ -96,6 +115,7 @@ const CategoryDropdown = ({ data, value, onChange, placeholder }) => {
 /* ---------------- FORM ---------------- */
 const TransactionForm = ({ type }) => {
   const { user } = useUser();
+  const router = useRouter();
 
   const defaultCats =
     type === "expense"
@@ -243,7 +263,7 @@ const TransactionForm = ({ type }) => {
   // SUBMIT (MANUAL OR AI SAME FLOW)
   // =========================
   const handleSubmit = async () => {
-    if (!title || !amount || !category) {
+    if (!amount || !category) {
       Alert.alert("Error", "Please fill in all fields.");
       return;
     }
@@ -262,7 +282,14 @@ const TransactionForm = ({ type }) => {
     if (type === "expense") await addExpense(data);
     else await addIncome(data);
 
-    Alert.alert("Success", `${type} saved successfully`);
+    Alert.alert("Success", `${type} saved successfully`, [
+  {
+    text: "OK",
+    onPress: () => {
+      router.replace("/drawer/tabs");
+    },
+  },
+]);
 
     // reset AFTER save (manual flow safe)
     setTitle("");
@@ -274,15 +301,30 @@ const TransactionForm = ({ type }) => {
 
   return (
     <View style={styles.formContainer}>
-      <Text style={styles.label}>Title</Text>
-      <TextInput style={styles.input} value={title} onChangeText={setTitle} />
+      <Text style={styles.label}>Notes</Text>
+      <TextInput
+        style={styles.input}
+        value={title}
+        onChangeText={setTitle}
+        placeholder="Add notes (optional)"
+      />
 
       <Text style={styles.label}>Amount</Text>
+
       <TextInput
         style={styles.input}
         value={amount}
         onChangeText={setAmount}
         keyboardType="numeric"
+        placeholder="Add amount (RM)"
+        onBlur={() => {
+          if (amount) {
+            const num = parseFloat(amount);
+            if (!isNaN(num)) {
+              setAmount(num.toFixed(2));
+            }
+          }
+        }}
       />
 
       <Text style={styles.label}>Category</Text>
@@ -368,7 +410,7 @@ export default AddExpenseScreen;
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    padding: 20, // ❌ removed white background
+    padding: 20,
   },
 
   tabsContainer: {

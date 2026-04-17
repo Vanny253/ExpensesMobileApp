@@ -242,9 +242,15 @@ export default function MainScreen() {
                       size={22}
                       color="#555"
                     />
-                    <Text style={styles.title}>
-                      {getCategoryName(item.category, item.type)}
-                    </Text>
+                    <View style={{ marginLeft: 8 }}>
+                      <Text style={styles.title}>
+                        {getCategoryName(item.category, item.type)}
+                      </Text>
+
+                      <Text style={styles.subTitle}>
+                        {item.title?.trim() ? item.title : "No title"}
+                      </Text>
+                    </View>
                   </View>
 
                   <View>
@@ -292,7 +298,7 @@ const styles = StyleSheet.create({
   swipeHint: {
     textAlign: "center",
     fontSize: 12,
-    color: "#928b9e",
+    color: "#7f7a89",
   },
   date: {
     fontSize: 18,
@@ -312,7 +318,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 10,
     borderWidth: 1.5,
-    borderColor: "rgba(178, 175, 175, 0.4)",
+    borderColor: "rgba(136, 136, 136, 0.4)",
   },
   balanceTitle: {
     fontSize: 14,
@@ -334,7 +340,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginHorizontal: 5,
     borderWidth: 1,
-    borderColor: "rgb(182, 182, 182)",
+    borderColor: "rgb(136, 136, 136)",
   },
   cardTitle: {
     fontSize: 14,
@@ -357,7 +363,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgb(182, 182, 182)",
+    borderColor: "rgb(136, 136, 136)",
     backgroundColor: "#ffffff71",
   },
   title: {
@@ -378,5 +384,12 @@ const styles = StyleSheet.create({
     marginTop: 20,
     fontSize: 16,
     color: "#333",
+  },
+
+  subTitle: {
+    fontSize: 12,
+    color: "#504848",
+    marginTop: 2,
+    marginLeft: 8,
   },
 });

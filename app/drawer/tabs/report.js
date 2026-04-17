@@ -137,10 +137,29 @@ export default function ReportScreen() {
                     <Text style={styles.sectionTitle}>Monthly Budget</Text>
 
                     <View style={styles.budgetContainer}>
-                      <View style={styles.circle}>
-                        <Text style={styles.circleText}>
-                          {percentage.toFixed(0)}%
-                        </Text>
+                      <View
+                        style={[
+                          styles.circle,
+                          {
+                            borderColor: remaining < 0 ? "#f05850c4" : "#007AFF",
+                          },
+                        ]}
+                      >
+                        {remaining < 0 ? (
+                          <Text style={{ color: "#f05850c4", fontWeight: "bold", fontSize: 11 }}>
+                            EXCEED
+                          </Text>
+                        ) : (
+                          <>
+                            <Text style={{ fontSize: 12, color: "#555" }}>
+                              Remaining
+                            </Text>
+
+                            <Text style={{ fontWeight: "bold", fontSize: 14 }}>
+                              {percentage.toFixed(0)}%
+                            </Text>
+                          </>
+                        )}
                       </View>
 
                       <View>

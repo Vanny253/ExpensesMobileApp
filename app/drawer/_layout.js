@@ -35,18 +35,7 @@ export default function RootLayout() {
             
           }}
         />
-
-        <Drawer.Screen
-          name="reminder"
-          options={{
-            drawerLabel: "Reminder",
-            title: "Reminder",
-            headerStyle: {
-              backgroundColor: "#a3d2fe",
-            },
-          }}
-        />
-
+        
         <Drawer.Screen
           name="regular_payment"
           options={{

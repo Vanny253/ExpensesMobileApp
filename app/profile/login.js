@@ -17,6 +17,7 @@ import { router } from "expo-router";
 import API_URL from "../../api/config";
 import BackgroundWrapper from "../../components/backgroundWrapper";
 import AppHeader from "../../components/appHeader";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function LoginScreen() {
   const { setUser } = useUser();
@@ -46,6 +47,7 @@ export default function LoginScreen() {
         loggedInUser.profile_image = `${API_URL}/${loggedInUser.profile_image}`;
       }
       setUser(loggedInUser);
+      await AsyncStorage.setItem("user", JSON.stringify(loggedInUser));
 
       Alert.alert("Login successful", `Welcome ${loggedInUser.nickname}!`);
 

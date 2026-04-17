@@ -182,7 +182,7 @@ export default function TransactionDetailScreen() {
       }
 
       Alert.alert("Success", "Transaction updated successfully!");
-      router.back();
+      router.push("/drawer/tabs");
     } catch (err) {
       console.log(err);
       Alert.alert("Error", "Failed to update transaction.");
@@ -205,7 +205,7 @@ export default function TransactionDetailScreen() {
             }
 
             Alert.alert("Deleted", "Transaction deleted!");
-            router.back();
+            router.push("/drawer/tabs");
           } catch (err) {
             console.log(err);
             Alert.alert("Error", "Delete failed.");
@@ -227,7 +227,7 @@ export default function TransactionDetailScreen() {
 
       <AppHeader
         title="Transaction Detail"
-        backRoute="/drawer/tabs"
+        backRoute="drawer/tabs"
       />
         <BackgroundWrapper>
 

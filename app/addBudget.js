@@ -141,7 +141,7 @@ export default function AddBudget() {
       });
 
       Alert.alert("Success", "Budget added");
-      router.back();
+      router.push("/drawer/budget");
     } catch (err) {
       Alert.alert("Error", err.message || "Failed to add budget");
     }
