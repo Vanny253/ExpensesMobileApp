@@ -49,7 +49,7 @@ export default function LoginScreen() {
 
       Alert.alert("Login successful", `Welcome ${loggedInUser.nickname}!`);
 
-      router.replace("/drawer/tabs/profile");
+      router.replace("/drawer/tabs");
     } catch (err) {
       const message =
         typeof err === "string"

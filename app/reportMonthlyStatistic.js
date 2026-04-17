@@ -76,8 +76,8 @@ export default function ReportMonthlyStatistic() {
         backRoute="/drawer/tabs/report"
       />
 
-      <ScrollView style={styles.container}>
         <BackgroundWrapper>
+      <ScrollView style={styles.container}>
 
           <View style={styles.contentContainer}>
 
@@ -119,8 +119,8 @@ export default function ReportMonthlyStatistic() {
 
           </View>
 
-        </BackgroundWrapper>
       </ScrollView>
+        </BackgroundWrapper>
 
     </View>
   );

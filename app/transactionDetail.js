@@ -32,6 +32,9 @@ import {
   DEFAULT_INCOME_CATEGORIES,
 } from "../components/defaultIcon";
 
+import AppHeader from "../components/appHeader";
+import BackgroundWrapper from "../components/backgroundWrapper";
+
 const STORAGE_KEY = "removed_categories";
 
 /* ---------------- CATEGORY DROPDOWN ---------------- */
@@ -220,64 +223,93 @@ export default function TransactionDetailScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.header}>Edit Transaction</Text>
+    <View style={{ flex: 1 }}>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Title</Text>
-        <TextInput
-          style={styles.input}
-          value={editTitle}
-          onChangeText={setEditTitle}
-        />
+      <AppHeader
+        title="Transaction Detail"
+        backRoute="/drawer/tabs"
+      />
+        <BackgroundWrapper>
 
-        <Text style={styles.label}>Amount</Text>
-        <TextInput
-          style={styles.input}
-          value={editAmount}
-          onChangeText={setEditAmount}
-          keyboardType="numeric"
-        />
+      <ScrollView style={styles.container}>
 
-        <Text style={styles.label}>Category</Text>
-        <CategoryDropdown
-          data={categories}
-          value={editCategory}
-          onChange={setEditCategory}
-        />
+          <View style={styles.contentContainer}>
 
-        <Text style={styles.label}>Date</Text>
-        <TouchableOpacity
-          style={styles.input}
-          onPress={() => setShowDatePicker(true)}
-        >
-          <Text>{editDate}</Text>
-        </TouchableOpacity>
+            <View style={styles.card}>
+              <Text style={styles.label}>Title</Text>
+              <TextInput
+                style={styles.input}
+                value={editTitle}
+                onChangeText={setEditTitle}
+              />
 
-        {showDatePicker && (
-          <DateTimePicker
-            value={new Date(editDate)}
-            mode="date"
-            onChange={onDateChange}
-          />
-        )}
+              <Text style={styles.label}>Amount</Text>
+              <TextInput
+                style={styles.input}
+                value={editAmount}
+                onChangeText={setEditAmount}
+                keyboardType="numeric"
+              />
 
-        <Text style={styles.label}>Type</Text>
-        <Text style={styles.readOnly}>{type}</Text>
-      </View>
+              <Text style={styles.label}>Category</Text>
+              <CategoryDropdown
+                data={categories}
+                value={editCategory}
+                onChange={setEditCategory}
+              />
 
-      <View style={styles.buttons}>
-        <Button title="Update Transaction" onPress={handleUpdate} />
-        <View style={{ height: 10 }} />
-        <Button title="Delete" color="red" onPress={handleDelete} />
-      </View>
-    </ScrollView>
+              <Text style={styles.label}>Date</Text>
+              <TouchableOpacity
+                style={styles.input}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Text>{editDate}</Text>
+              </TouchableOpacity>
+
+              {showDatePicker && (
+                <DateTimePicker
+                  value={new Date(editDate)}
+                  mode="date"
+                  onChange={onDateChange}
+                />
+              )}
+
+              <Text style={styles.label}>Type</Text>
+              <Text style={styles.readOnly}>{type}</Text>
+            </View>
+
+            <View style={styles.buttons}>
+
+            {/* UPDATE BUTTON */}
+            <TouchableOpacity
+              style={styles.saveButton}
+              onPress={handleUpdate}
+            >
+              <Text style={styles.saveButtonText}>Update Transaction</Text>
+            </TouchableOpacity>
+
+            {/* DELETE BUTTON */}
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={handleDelete}
+            >
+              <Text style={styles.deleteButtonText}>Delete</Text>
+            </TouchableOpacity>
+
+          </View>
+
+          </View>
+
+      </ScrollView>
+        </BackgroundWrapper>
+
+    </View>
   );
 }
 
 /* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
-  container: { padding: 20, backgroundColor: "#fff" },
+  container: { paddingTop: 80 },
   header: {
     fontSize: 22,
     fontWeight: "bold",
@@ -287,8 +319,8 @@ const styles = StyleSheet.create({
   card: { padding: 20, borderRadius: 12 },
   label: { fontWeight: "bold", marginBottom: 5, marginTop: 10 },
   input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
+    borderWidth: 1.5,
+    borderColor: "rgb(182, 182, 182)",
     padding: 12,
     borderRadius: 8,
   },
@@ -297,8 +329,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#ccc",
+    borderWidth: 1.5,
+    borderColor: "rgb(182, 182, 182)",
     padding: 12,
     borderRadius: 8,
   },
@@ -331,7 +363,31 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: "red",
   },
-  buttons: {
-    marginTop: 20,
+  saveButton: {
+    backgroundColor: "#007AFF",
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 10,
+  },
+
+  saveButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+
+  deleteButton: {
+    backgroundColor: "#FF3B30",
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 12,
+  },
+
+  deleteButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

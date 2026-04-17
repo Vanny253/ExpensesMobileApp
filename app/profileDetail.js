@@ -17,6 +17,9 @@ import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
+import AppHeader from "../components/appHeader";
+import BackgroundWrapper from "../components/backgroundWrapper";
+
 export default function ProfileDetail() {
   const { user, setUser } = useUser();
   const router = useRouter();
@@ -75,7 +78,7 @@ export default function ProfileDetail() {
 
       setUser(updatedUser);
       Alert.alert("Success", "Profile updated!");
-      router.back();
+      router.replace("/drawer/tabs/profile");
     } catch (error) {
       console.log(error);
       Alert.alert("Error", "Update failed");
@@ -83,65 +86,80 @@ export default function ProfileDetail() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Profile Image */}
-      <TouchableOpacity onPress={pickImage} style={styles.imageContainer}>
-        <Image
-            source={{
+     <View style={{ flex: 1 }}>
+
+      <AppHeader
+        title="Profile Detail"
+        backRoute="/drawer/tabs/profile"
+      />
+
+      <BackgroundWrapper>
+
+        <ScrollView contentContainerStyle={styles.container}>
+
+          {/* Profile Image */}
+          <TouchableOpacity onPress={pickImage} style={styles.imageContainer}>
+            <Image
+              source={{
                 uri: image
-                ? image + "?t=" + new Date().getTime()
-                : "https://via.placeholder.com/100",
-            }}
-            style={styles.image}
-        />
-        <Text style={styles.changeText}>Change Profile Picture</Text>
-      </TouchableOpacity>
+                  ? image + "?t=" + new Date().getTime()
+                  : "https://via.placeholder.com/100",
+              }}
+              style={styles.image}
+            />
+            <Text style={styles.changeText}>Change Profile Picture</Text>
+          </TouchableOpacity>
 
-      <Text style={styles.label}>Nickname</Text>
-      <TextInput style={styles.input} value={nickname} onChangeText={setNickname} />
+          <Text style={styles.label}>Nickname</Text>
+          <TextInput style={styles.input} value={nickname} onChangeText={setNickname} />
 
-      <Text style={styles.label}>Email</Text>
-      <TextInput style={styles.input} value={email} onChangeText={setEmail} />
+          <Text style={styles.label}>Email</Text>
+          <TextInput style={styles.input} value={email} onChangeText={setEmail} />
 
-      <Text style={styles.label}>Phone Number</Text>
-      <TextInput style={styles.input} value={phoneNumber} onChangeText={setPhoneNumber} />
+          <Text style={styles.label}>Phone Number</Text>
+          <TextInput style={styles.input} value={phoneNumber} onChangeText={setPhoneNumber} />
 
-      <Text style={styles.label}>Gender</Text>
-      <TextInput style={styles.input} value={gender} onChangeText={setGender} />
+          <Text style={styles.label}>Gender</Text>
+          <TextInput style={styles.input} value={gender} onChangeText={setGender} />
 
-      {/* DOB Picker */}
-      <Text style={styles.label}>Date of Birth</Text>
-      <TouchableOpacity style={styles.input} onPress={() => setShowPicker(true)}>
-        <Text>
-          {dobDate ? dobDate.toISOString().split("T")[0] : "Select Date"}
-        </Text>
-      </TouchableOpacity>
+          {/* DOB Picker */}
+          <Text style={styles.label}>Date of Birth</Text>
+          <TouchableOpacity style={styles.input} onPress={() => setShowPicker(true)}>
+            <Text>
+              {dobDate ? dobDate.toISOString().split("T")[0] : "Select Date"}
+            </Text>
+          </TouchableOpacity>
 
-      {showPicker && (
-        <DateTimePicker
-          value={dobDate}
-          mode="date"
-          maximumDate={new Date()}
-          display="default"
-          onChange={(event, selectedDate) => {
-            setShowPicker(Platform.OS === "ios");
-            if (selectedDate) {
-              setDobDate(selectedDate);
-              setDateOfBirth(selectedDate.toISOString().split("T")[0]);
-            }
-          }}
-        />
-      )}
+          {showPicker && (
+            <DateTimePicker
+              value={dobDate}
+              mode="date"
+              maximumDate={new Date()}
+              display="default"
+              onChange={(event, selectedDate) => {
+                setShowPicker(Platform.OS === "ios");
+                if (selectedDate) {
+                  setDobDate(selectedDate);
+                  setDateOfBirth(selectedDate.toISOString().split("T")[0]);
+                }
+              }}
+            />
+          )}
 
-      <TouchableOpacity style={styles.button} onPress={handleSave}>
-        <Text style={styles.buttonText}>Save</Text>
-      </TouchableOpacity>
-    </ScrollView>
+          <TouchableOpacity style={styles.button} onPress={handleSave}>
+            <Text style={styles.buttonText}>Save</Text>
+          </TouchableOpacity>
+
+        </ScrollView>
+
+      </BackgroundWrapper>
+
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 15, backgroundColor: "#f2f2f2" },
+  container: { flex: 1, padding: 15 , paddingTop: 90},
   label: { fontSize: 16, marginTop: 15 },
   input: {
     backgroundColor: "#fff",
