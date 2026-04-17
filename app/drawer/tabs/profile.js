@@ -13,11 +13,18 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "react-native";
 import BackgroundWrapper from "../../../components/backgroundWrapper";
+import { useNavigation } from "@react-navigation/native";
 
 
 
 export default function ProfileTab() {
   const { user, setUser } = useUser();
+  const navigation = useNavigation();
+
+
+  const handleSettings = () => {
+    navigation.openDrawer();
+  };
 
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
@@ -76,6 +83,12 @@ export default function ProfileTab() {
 
             {/* Actions */}
             <View style={styles.section}>
+
+              <TouchableOpacity style={styles.item} onPress={handleSettings}>
+                <Ionicons name="settings-outline" size={20} color="#333" />
+                <Text style={styles.itemText}>Settings</Text>
+              </TouchableOpacity>
+
               <TouchableOpacity style={styles.item} onPress={handleLogout}>
                 <Ionicons name="log-out-outline" size={20} color="#333" />
                 <Text style={styles.itemText}>Logout</Text>
