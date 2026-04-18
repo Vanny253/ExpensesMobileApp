@@ -5,18 +5,31 @@ import { signupUser } from "../../api/userApi";
 import { router } from "expo-router";
 import BackgroundWrapper from "../../components/backgroundWrapper";
 import AppHeader from "../../components/appHeader";
+import { Ionicons } from "@expo/vector-icons";
+import { Picker } from "@react-native-picker/picker";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 export default function SignupScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [nickname, setNickname] = useState("");
   const [phone, setPhone] = useState("");
   const [gender, setGender] = useState("");
   const [dob, setDob] = useState("");
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  
 
   const handleSignup = async () => {
-    if (!email || !password || !nickname) {
-      Alert.alert("Error", "Please fill in email, password, and nickname");
+    if (!email || !password || !nickname || !gender) {
+      Alert.alert("Error", "Please fill in all required fields");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert("Error", "Passwords do not match");
       return;
     }
 
@@ -51,13 +64,39 @@ export default function SignupScreen() {
           keyboardType="email-address"
         />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
+        <View style={styles.passwordContainer}>
+          <TextInput
+            style={styles.passwordInput}
+            placeholder="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+          />
+          <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+            <Ionicons
+              name={showPassword ? "eye-off" : "eye"}
+              size={22}
+              color="gray"
+            />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.passwordContainer}>
+          <TextInput
+            style={styles.passwordInput}
+            placeholder="Confirm Password"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry={!showConfirmPassword}
+          />
+          <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+            <Ionicons
+              name={showConfirmPassword ? "eye-off" : "eye"}
+              size={22}
+              color="gray"
+            />
+          </TouchableOpacity>
+        </View>
 
         <TextInput
           style={styles.input}
@@ -74,19 +113,42 @@ export default function SignupScreen() {
           keyboardType="phone-pad"
         />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Gender (optional)"
-          value={gender}
-          onChangeText={setGender}
-        />
+        <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={gender}
+            onValueChange={(itemValue) => setGender(itemValue)}
+          >
+            <Picker.Item label="Select Gender" value="" />
+            <Picker.Item label="Male" value="male" />
+            <Picker.Item label="Female" value="female" />
+          </Picker>
+        </View>
 
-        <TextInput
+        <TouchableOpacity
           style={styles.input}
-          placeholder="Date of birth (YYYY-MM-DD)"
-          value={dob}
-          onChangeText={setDob}
-        />
+          onPress={() => setShowDatePicker(true)}
+        >
+          <Text>
+            {dob ? dob : "Select Date of Birth"}
+          </Text>
+        </TouchableOpacity>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={dob ? new Date(dob) : new Date()}
+            mode="date"
+            display="default"
+            onChange={(event, selectedDate) => {
+              setShowDatePicker(false);
+
+              if (selectedDate) {
+                const formattedDate = selectedDate.toISOString().split("T")[0];
+                setDob(formattedDate);
+              }
+            }}
+            maximumDate={new Date()} // prevent future dates
+          />
+        )}
 
         {/* CUSTOM BUTTON */}
         <TouchableOpacity style={styles.button} onPress={handleSignup}>
@@ -108,16 +170,44 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   button: {
-  backgroundColor: "#007AFF",
-  padding: 14,
-  borderRadius: 10,
-  alignItems: "center",
-  marginTop: 10,
-},
+    backgroundColor: "#007AFF",
+    padding: 14,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
+  },
 
-buttonText: {
-  color: "#fff",
-  fontWeight: "bold",
-  fontSize: 16,
-},
+  buttonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+
+  passwordContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "rgb(182, 182, 182)",
+    borderRadius: 5,
+    marginBottom: 15,
+    paddingHorizontal: 10,
+  },
+
+  passwordInput: {
+    flex: 1,
+    paddingVertical: 10,
+  },
+
+  eye: {
+    fontSize: 18,
+    marginLeft: 10,
+  },
+
+  pickerContainer: {
+    borderWidth: 1.5,
+    borderColor: "rgb(182, 182, 182)",
+    borderRadius: 5,
+    marginBottom: 15,
+    overflow: "hidden",
+  },
 });

@@ -18,11 +18,13 @@ import API_URL from "../../api/config";
 import BackgroundWrapper from "../../components/backgroundWrapper";
 import AppHeader from "../../components/appHeader";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function LoginScreen() {
   const { setUser } = useUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
@@ -80,13 +82,22 @@ export default function LoginScreen() {
           autoFocus
         />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
+        <View style={styles.passwordContainer}>
+          <TextInput
+            style={styles.passwordInput}
+            placeholder="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+          />
+          <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+            <Ionicons
+              name={showPassword ? "eye-off" : "eye"}
+              size={22}
+              color="gray"
+            />
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.buttonContainer}>
           {loading ? (
@@ -147,5 +158,25 @@ const styles = StyleSheet.create({
   signupLink: {
     color: "#007AFF",
     fontWeight: "bold",
+  },
+
+  passwordContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "rgb(182, 182, 182)",
+    borderRadius: 5,
+    marginBottom: 15,
+    paddingHorizontal: 10,
+  },
+
+  passwordInput: {
+    flex: 1,
+    paddingVertical: 10,
+  },
+
+  eye: {
+    fontSize: 18,
+    marginLeft: 10,
   },
 });
