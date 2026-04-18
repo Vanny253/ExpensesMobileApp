@@ -1,18 +1,156 @@
 import { Tabs, useNavigation } from "expo-router";
-import { TouchableOpacity, View, Modal } from "react-native";
+import {
+  TouchableOpacity,
+  View,
+  Modal,
+  Text,
+} from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { DrawerActions } from "@react-navigation/native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Chatbot from "../../chatbot";
+import { Calendar } from "react-native-calendars";
+import { getExpenses , getIncome} from "../../../api/expenseApi";
+import { useUser } from "../../../context/UserContext";
+import { useRouter } from "expo-router";
 
 export default function TabsLayout() {
   const navigation = useNavigation();
+  const { user } = useUser();
+  const router = useRouter();
 
-  // ✅ ADD THIS
   const [chatVisible, setChatVisible] = useState(false);
+  const [calendarVisible, setCalendarVisible] = useState(false);
+  const [markedDates, setMarkedDates] = useState({});
+
+  // ✅ LOAD REAL EXPENSE DATA
+  useEffect(() => {
+    const loadData = async () => {
+      if (!user) return;
+
+      const [expenses, income] = await Promise.all([
+        getExpenses(user.user_id),
+        getIncome(user.user_id),
+      ]);
+
+      const grouped = {};
+
+      // 🔴 EXPENSES
+      expenses.forEach((item) => {
+        const date = item.date?.split("T")[0];
+        const amount = Number(item.amount || 0);
+
+        if (!grouped[date]) {
+          grouped[date] = { expense: 0, income: 0 };
+        }
+
+        grouped[date].expense += amount;
+      });
+
+      // 🟢 INCOME
+      income.forEach((item) => {
+        const date = item.date?.split("T")[0];
+        const amount = Number(item.amount || 0);
+
+        if (!grouped[date]) {
+          grouped[date] = { expense: 0, income: 0 };
+        }
+
+        grouped[date].income += amount;
+      });
+
+      setMarkedDates(grouped);
+    };
+
+    loadData();
+  }, [user]);
+
+  const renderSearchButton = () => (
+    <TouchableOpacity
+      style={{ marginRight: 10 }}
+      onPress={() => router.push("/searchTransaction")} 
+    >
+      <Ionicons name="search-outline" size={24} />
+    </TouchableOpacity>
+  );
+
+  const renderCalendarButton = () => (
+    <TouchableOpacity
+      style={{ marginRight: 15 }}
+      onPress={() => setCalendarVisible(true)}
+    >
+      <Ionicons name="calendar-outline" size={24} />
+    </TouchableOpacity>
+  );
 
   return (
     <>
+      {/* CALENDAR MODAL */}
+      <Modal visible={calendarVisible} animationType="slide" transparent>
+        <View style={{
+          flex: 1,
+          justifyContent: "center",
+          backgroundColor: "rgba(0,0,0,0.3)"
+        }}>
+          <View style={{
+            margin: 20,
+            backgroundColor: "#fff",
+            borderRadius: 15,
+            padding: 15,
+          }}>
+
+            <TouchableOpacity
+              onPress={() => setCalendarVisible(false)}
+              style={{ alignSelf: "flex-end" }}
+            >
+              <Ionicons name="close" size={26} />
+            </TouchableOpacity>
+
+            {/* ✅ FIXED CALENDAR (NO CRASH) */}
+            <Calendar
+              dayComponent={({ date }) => {
+                const dateKey = date.dateString;
+                const data = markedDates?.[dateKey];
+
+                const expense = data?.expense || 0;
+                const income = data?.income || 0;
+
+                return (
+                  <View
+                    style={{
+                      width: 42,
+                      height: 55,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {/* DATE */}
+                    <Text style={{ fontSize: 12, fontWeight: "bold" }}>
+                      {date.day}
+                    </Text>
+
+                    {/* INCOME (GREEN) */}
+                    {income > 0 && (
+                      <Text style={{ fontSize: 10, color: "green" }}>
+                        {income}
+                      </Text>
+                    )}
+
+                    {/* EXPENSE (RED) */}
+                    {expense > 0 && (
+                      <Text style={{ fontSize: 10, color: "red" }}>
+                        {expense}
+                      </Text>
+                    )}
+                  </View>
+                );
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* TABS */}
       <Tabs
         screenOptions={{
           headerLeft: () => (
@@ -23,7 +161,12 @@ export default function TabsLayout() {
               <Ionicons name="menu-outline" size={28} />
             </TouchableOpacity>
           ),
-
+          headerRight: () => (
+            <View style={{ flexDirection: "row" }}>
+              {renderSearchButton()}
+              {renderCalendarButton()}
+            </View>
+          ),
           tabBarActiveTintColor: "#007AFF",
           tabBarInactiveTintColor: "#515151",
           tabBarStyle: {
@@ -33,6 +176,8 @@ export default function TabsLayout() {
           },
         }}
       >
+
+        {/* EXPENSES */}
         <Tabs.Screen
           name="index"
           options={{
@@ -46,6 +191,7 @@ export default function TabsLayout() {
           }}
         />
 
+        {/* CHARTS */}
         <Tabs.Screen
           name="charts"
           options={{
@@ -59,6 +205,7 @@ export default function TabsLayout() {
           }}
         />
 
+        {/* ADD */}
         <Tabs.Screen
           name="add_expense"
           options={{
@@ -84,6 +231,7 @@ export default function TabsLayout() {
           }}
         />
 
+        {/* REPORT */}
         <Tabs.Screen
           name="report"
           options={{
@@ -97,6 +245,7 @@ export default function TabsLayout() {
           }}
         />
 
+        {/* PROFILE */}
         <Tabs.Screen
           name="profile"
           options={{
@@ -115,7 +264,7 @@ export default function TabsLayout() {
         />
       </Tabs>
 
-      {/* ✅ UPDATED CHATBOT BUTTON */}
+      {/* CHATBOT BUTTON */}
       <TouchableOpacity
         onPress={() => setChatVisible(true)} 
         style={{
@@ -134,40 +283,26 @@ export default function TabsLayout() {
           elevation: 5,
         }}
       >
-        <MaterialCommunityIcons
-          name="robot-happy"
-          size={30}
-          color="#332f2fff"
-        />
+        <MaterialCommunityIcons name="robot-happy" size={30} color="#333" />
       </TouchableOpacity>
 
-      {/* ✅ NEW POP-UP CHATBOT */}
-      <Modal visible={chatVisible} animationType="slide" transparent={true}>
-        <View
-          style={{
-            flex: 1,
-            justifyContent: "flex-end",
-            backgroundColor: "rgba(0,0,0,0.3)",
-          }}
-        >
-          <View
-            style={{
-              height: "75%",
-              backgroundColor: "#fff",
-              borderTopLeftRadius: 20,
-              borderTopRightRadius: 20,
-              padding: 10,
-            }}
-          >
-            {/* Close Button */}
-            <TouchableOpacity
-              onPress={() => setChatVisible(false)}
-              style={{ alignSelf: "flex-end", marginBottom: 5 }}
-            >
+      {/* CHATBOT MODAL */}
+      <Modal visible={chatVisible} animationType="slide" transparent>
+        <View style={{
+          flex: 1,
+          justifyContent: "flex-end",
+          backgroundColor: "rgba(0,0,0,0.3)"
+        }}>
+          <View style={{
+            height: "75%",
+            backgroundColor: "#fff",
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+          }}>
+            <TouchableOpacity onPress={() => setChatVisible(false)}>
               <Ionicons name="close" size={28} />
             </TouchableOpacity>
 
-            {/* Chatbot */}
             <Chatbot />
           </View>
         </View>

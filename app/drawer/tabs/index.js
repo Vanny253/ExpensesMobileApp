@@ -19,12 +19,13 @@ import {
   DEFAULT_INCOME_CATEGORIES,
 } from "../../../components/defaultIcon";
 import { useUser } from "../../../context/UserContext";
+import { useTransactions } from "../../../context/TransactionContext";
 
 export default function MainScreen() {
   const router = useRouter();
   const { user } = useUser();
 
-  const [transactions, setTransactions] = useState([]);
+  const { transactions, setTransactions } = useTransactions();
   const [loading, setLoading] = useState(true);
 
   const [totalExpense, setTotalExpense] = useState(0);
@@ -172,7 +173,7 @@ export default function MainScreen() {
 
           if (translationX > 50) {
             goToPreviousMonth();
-          } else if (translationX < -50 && !isCurrentMonth) {
+          } else if (translationX < -50) {
             goToNextMonth();
           }
         }}
