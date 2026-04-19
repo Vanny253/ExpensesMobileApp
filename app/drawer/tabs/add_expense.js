@@ -32,6 +32,7 @@ const STORAGE_KEY = "removed_categories";
 /* ---------------- DROPDOWN COMPONENT ---------------- */
 const CategoryDropdown = ({ data, value, onChange, placeholder }) => {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
   
   const selected = data.find((i) => i.id === value);
 
@@ -166,7 +167,6 @@ const TransactionForm = ({ type }) => {
     return bestMatch ? bestMatch.id : "";
   };
 
-
   // =========================
   // RESET WHEN USER ENTERS SCREEN (MANUAL MODE)
   // =========================
@@ -207,8 +207,6 @@ useEffect(() => {
     scannedCategory,
     scanId,
   } = params;
-
-  if (!scanId) return;
 
   // 🔥 prevent duplicate scan (THIS FIXES YOUR BUG)
   if (scanId === lastScanId) return;

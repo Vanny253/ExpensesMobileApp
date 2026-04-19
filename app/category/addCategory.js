@@ -63,7 +63,7 @@ export default function AddCategoryScreen() {
       });
 
       Alert.alert("Success", "Category created successfully");
-      router.back();
+      router.replace("/drawer/category");
     } catch (error) {
       console.log(error);
       Alert.alert("Error", "Failed to create category");

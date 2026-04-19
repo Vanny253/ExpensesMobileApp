@@ -133,6 +133,36 @@ Return JSON ONLY:
 }}
 """
 
+def get_regular_payment_prompt(text, today, categories):
+    return f"""
+You are an AI that extracts structured data for a regular payment.
+
+CRITICAL RULES:
+- ALWAYS respect the user's mentioned category if provided
+- NEVER default to "General" if a category exists in the sentence
+- If user says "food", "entertainment", "transport", etc → USE IT EXACTLY
+- Only use "General" if NO category is mentioned
+
+Available categories:
+{categories}
+
+User input:
+"{text}"
+
+Return JSON:
+{{
+  "note": "",
+  "amount": 0,
+  "frequency": "daily | weekly | monthly | yearly",
+  "suggestedCategory": ""
+}}
+
+IMPORTANT:
+- "in category food" → MUST return "food"
+- "category food" → MUST return "food"
+- "food" → MUST return "food"
+"""
+
 
 
 def get_chat_intent_prompt(text):

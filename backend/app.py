@@ -26,7 +26,8 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from datetime import datetime
 from prompts import get_expense_prompt
-from prompts import get_budget_prompt
+from prompts import get_budget_prompt 
+from prompts import get_regular_payment_prompt
 import json
 from models import Category
 from word2number import w2n
@@ -1593,6 +1594,9 @@ def transcribe():
             data = request.get_json(silent=True) or {}
             text = request.form.get("text") or data.get("text")
 
+        # 🔥 ✅ ADD THIS LINE HERE (IMPORTANT FIX)
+        flow_override = request.form.get("flow")
+
         if not text:
             return jsonify({"error": "No input text"}), 400
 
@@ -1600,31 +1604,61 @@ def transcribe():
 
         final_text = text
 
+
         # =========================
-        # INTENT DETECTION
+        # FLOW OVERRIDE (MUST BE FIRST)
         # =========================
-        intent_prompt = f"""
-Classify the user's intent.
+        flow_override = request.form.get("flow")
+        print("📌 FLOW OVERRIDE:", flow_override)
 
-User input:
-"{text}"
+        intent = None  # default
 
-Return JSON:
-{{
-  "intent": "add_expense | query_total | query_category | query_summary | unknown"
-}}
-"""
+        if flow_override == "regularPayment":
+            intent = "add_regular_payment"
+        elif flow_override == "budget":
+            intent = "add_budget"
+        elif flow_override == "expense":
+            intent = "add_expense"
 
-        intent_res = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": intent_prompt}],
-            response_format={"type": "json_object"}
-        )
+        # =========================
+        # INTENT DETECTION (ONLY IF NO FLOW)
+        # =========================
+        if intent is None:
 
-        intent_data = json.loads(intent_res.choices[0].message.content)
-        intent = intent_data.get("intent")
+            intent_prompt = f"""
+        Classify the user's intent.
 
-        print("🧠 INTENT:", intent)
+        User input:
+        "{text}"
+
+        Return JSON:
+        {{
+        "intent": "add_expense | add_budget | add_regular_payment | query_total | query_category | query_summary | unknown"
+        }}
+        """
+
+            intent_res = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": intent_prompt}],
+                response_format={"type": "json_object"}
+            )
+
+            intent_data = json.loads(intent_res.choices[0].message.content)
+            intent = intent_data.get("intent")
+
+        print("🧠 FINAL INTENT:", intent)
+
+
+        # =========================
+        # 🔥 SMART RULE FIX (IMPORTANT)
+        # prevents AI mistakes like "add_budget"
+        # =========================
+        text_lower = text.lower()
+
+        if intent == "add_budget" and (
+            "youtube" in text_lower or "netflix" in text_lower or "spotify" in text_lower
+        ):
+            intent = "add_regular_payment"
 
         # =========================
         # CATEGORY LIST
@@ -1655,6 +1689,62 @@ Return JSON:
                 "intent": intent,
                 "result": result
             })
+
+        # =========================
+        # ADD BUDGET
+        # =========================
+        elif intent == "add_budget":
+
+            prompt = get_budget_prompt(text, today, categories)
+
+            chat = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                response_format={"type": "json_object"}
+            )
+
+            result = json.loads(chat.choices[0].message.content)
+
+            return jsonify({
+                "type": "budget",
+                "text": final_text,
+                "intent": intent,
+                "result": result
+            })
+
+        # =========================
+        # ADD REGULAR PAYMENT
+        # =========================
+        elif intent == "add_regular_payment":
+            try:
+                prompt = get_regular_payment_prompt(text, today, categories)
+
+                chat = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": prompt}],
+                    response_format={"type": "json_object"}
+                )
+
+                raw = chat.choices[0].message.content
+                print("🧠 RAW AI RESPONSE:", raw)
+
+                result = json.loads(raw)
+
+                return jsonify({
+                    "type": "regular_payment",
+                    "text": final_text,
+                    "intent": intent,
+                    "result": result
+                })
+
+            except Exception as e:
+                print("🔥 REGULAR PAYMENT ERROR:", str(e))
+
+                return jsonify({
+                    "error": str(e),
+                    "intent": intent,
+                    "result": None
+                }), 500
 
 
         # =========================

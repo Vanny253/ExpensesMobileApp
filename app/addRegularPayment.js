@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -37,6 +37,8 @@ export default function RegularPaymentDetail() {
   const [amount, setAmount] = useState("");
   const params = useLocalSearchParams();
   const [pendingAI, setPendingAI] = useState(null);
+  const hasLoadedRef = useRef(false);
+
 
   const payment = useMemo(() => {
     try {
@@ -55,16 +57,25 @@ export default function RegularPaymentDetail() {
   };
 
   const normalize = (str) =>
-    str?.toString().toLowerCase().trim();
+      str?.toString().toLowerCase().trim();
 
-  const resolveCategoryName = (aiCategory) => {
+    const resolveCategoryName = (aiCategory) => {
     if (!aiCategory) return "";
 
     const input = normalize(aiCategory);
 
-    const match = categories.find((c) => {
-      return normalize(c.name) === input;
-    });
+    // 1. exact match
+    let match = categories.find(
+      (c) => normalize(c.name) === input
+    );
+
+    if (match) return match.name;
+
+    // 2. fuzzy match (IMPORTANT FIX)
+    match = categories.find((c) =>
+      normalize(c.name).includes(input) ||
+      input.includes(normalize(c.name))
+    );
 
     return match ? match.name : "";
   };
@@ -97,13 +108,8 @@ export default function RegularPaymentDetail() {
 
       setCategories(finalCategories);
 
-      // ✅ PRIORITY: use chatbot category if exists
-      if (params?.scannedCategory) {
-        setCategory(params.scannedCategory);
-      } else if (finalCategories.length > 0) {
-        setCategory(finalCategories[0].name);
-      }
-
+      // ❌ DO NOT AUTO SET CATEGORY HERE ANYMORE
+      // Let AI or params control it only
     } catch (error) {
       Alert.alert("Error", "Failed to load categories");
     }
@@ -115,6 +121,9 @@ export default function RegularPaymentDetail() {
 
     const resolved = resolveCategoryName(pendingAI);
 
+    console.log("🧠 AI CATEGORY:", pendingAI);
+    console.log("✅ RESOLVED CATEGORY:", resolved);
+
     if (resolved) {
       setCategory(resolved);
     }
@@ -123,31 +132,20 @@ export default function RegularPaymentDetail() {
   }, [categories, pendingAI]);
 
 
-  const onDateChange = (event, selectedDate) => {
-    setShowDatePicker(false);
-
-    if (selectedDate) {
-      setDate(selectedDate);
-    }
-  };
-
-
   useEffect(() => {
-    if (!params) return;
+    if (!params || Object.keys(params).length === 0) return;
 
-    console.log("📥 RECEIVED PARAMS (REGULAR PAYMENT):", params);
+    console.log("📥 INITIAL LOAD ONLY:", params);
 
-    if (params.title) setTitle(params.title);
-    if (params.scannedAmount) setAmount(params.scannedAmount);
-    if (params.type) setType(params.type);
-    if (params.frequency) setFrequency(params.frequency);
+    setTitle(params.title ?? "");
+    setAmount(params.scannedAmount ?? "");
+    setType(params.type ?? "expense");
+    setFrequency(params.frequency ?? "Monthly");
 
-    // ❌ DON'T set category directly
     if (params.scannedCategory) {
       setPendingAI(params.scannedCategory);
     }
-
-  }, [params]);
+  }, []);
 
 
   useEffect(() => {
@@ -183,7 +181,7 @@ export default function RegularPaymentDetail() {
       console.log("==============================\n");
 
       Alert.alert("Success", "Regular payment added");
-      router.back();
+      router.replace("/drawer/regular_payment");
     } catch (error) {
       console.log("❌ SAVE ERROR:", error);
       console.log("==============================\n");
@@ -220,7 +218,6 @@ export default function RegularPaymentDetail() {
           selectedValue={type}
           onValueChange={(value) => {
             setType(value);
-            setCategory("");
           }}
           style={styles.picker}
         >
@@ -230,7 +227,7 @@ export default function RegularPaymentDetail() {
 
         <Text style={styles.label}>Category</Text>
         <Picker
-          selectedValue={category}
+          selectedValue={category || ""}
           onValueChange={setCategory}
           style={styles.picker}
         >

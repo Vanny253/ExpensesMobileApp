@@ -255,6 +255,15 @@ const BudgetCircle = ({ budget, spent, size = 80 }) => {
               }
             />
           )}
+
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => router.push("/addBudget")} // change path if needed
+          >
+            <Text style={{ color: "#fff", fontWeight: "bold" }}>
+              + Add Budget
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <BottomTabs />
@@ -291,5 +300,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#FF3B30",
     fontSize: 16,
+  },
+  addButton: {
+    backgroundColor: "#007AFF",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 10,
   },
 });

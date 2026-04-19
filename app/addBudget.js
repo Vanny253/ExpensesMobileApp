@@ -78,31 +78,52 @@ export default function AddBudget() {
   // =========================
   // LOAD CATEGORIES
   // =========================
- const loadCategories = async () => {
+const loadCategories = async () => {
   if (!user) return;
 
   try {
     const dbCategories = await getCategories(user.user_id, "expense");
 
-    const safeDb = (dbCategories || []).map((c) => ({
-      id: c?.id ? String(c.id).toLowerCase() : "",
-      name: c?.name || "",
-    }));
+    // =========================
+    // NORMALIZE DB CATEGORIES
+    // =========================
+    const safeDb = (dbCategories || []).map((c) => {
+      const id = c?.id ? String(c.id).toLowerCase().trim() : "";
+      const name = c?.name ? String(c.name).trim() : "";
 
+      return {
+        id,
+        name,
+      };
+    });
+
+    // =========================
+    // NORMALIZE DEFAULT CATEGORIES
+    // =========================
     const defaultCats = DEFAULT_EXPENSE_CATEGORIES.map((c) => ({
-      id: String(c.id).toLowerCase(),
+      id: String(c.id).toLowerCase().trim(),
       name: c.name,
     }));
 
+    // =========================
+    // MERGE BOTH LISTS
+    // =========================
     const merged = [...defaultCats, ...safeDb];
 
+    // =========================
+    // REMOVE DUPLICATES (BY ID)
+    // =========================
     const unique = merged.filter(
       (item, index, self) =>
-        item.id && index === self.findIndex((t) => t.id === item.id)
+        item.id &&
+        index === self.findIndex((t) => t.id === item.id)
     );
 
     setCategories(unique);
 
+    // =========================
+    // AUTO SELECT FIRST CATEGORY (SAFE)
+    // =========================
     if (!category && unique.length > 0) {
       setCategory(unique[0].id);
     }
@@ -114,6 +135,27 @@ export default function AddBudget() {
   useEffect(() => {
     loadCategories();
   }, [user]);
+
+  const getCategoryName = (value) => {
+    if (!value) return "-";
+
+    const key = String(value).toLowerCase().trim();
+
+    // 1. direct match
+    if (categoryMap[key]) return categoryMap[key];
+
+    // 2. fallback: try fuzzy match
+    const foundKey = Object.keys(categoryMap).find((k) =>
+      k.includes(key) || key.includes(k)
+    );
+
+    if (foundKey) return categoryMap[foundKey];
+
+    // 3. default formatting fallback
+    return key
+      .replace(/[-_]/g, " ")
+      .replace(/\b\w/g, (l) => l.toUpperCase());
+  };
 
   // =========================
   // SAVE BUDGET

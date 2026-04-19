@@ -533,8 +533,13 @@ const sendAudioToBackend = async (uri = null, textInput = null) => {
 
     if (data.error) throw new Error(data.error);
 
-    const userText = data.text || "";
+    const userText =
+      data.text ||
+      data.result?.text ||
+      textInput ||
+      "";
 
+    // ✅ show user message
     if (userText) {
       addMessage({
         role: "user",
@@ -543,7 +548,26 @@ const sendAudioToBackend = async (uri = null, textInput = null) => {
       });
     }
 
-    // ✅ HANDLE RESPONSE HERE (NOT calling handleUserInput again)
+    // =====================================================
+    // ✅ 🔥 FIX 1: RESPECT ACTIVE FLOW (VERY IMPORTANT)
+    // =====================================================
+    if (activeFlow === "expense") {
+      return handleExpense(userText);
+    }
+
+    if (activeFlow === "budget") {
+      return handleBudgetFlow(userText);
+    }
+
+    if (activeFlow === "regularPayment") {
+      console.log("🔥 ROUTING TO REGULAR PAYMENT FLOW");
+      return handleRegularPaymentFlow(userText || textInput);
+    }
+
+    // =====================================================
+    // NORMAL CHAT MODE (NO BUTTON CLICKED)
+    // =====================================================
+
     if (data.type === "answer") {
       addMessage({
         role: "assistant",
@@ -553,14 +577,36 @@ const sendAudioToBackend = async (uri = null, textInput = null) => {
       return;
     }
 
+    // =====================================================
+    // ✅ 🔥 FIX 2: AUTO FILL EXPENSE (VOICE WITHOUT BUTTON)
+    // =====================================================
     if (data.type === "expense") {
-      // forward to expense UI
       const parsed = data.result;
+
+      const amount = parsed.amount || "";
+      const title = parsed.note || "General expense";
+      const category = parsed.suggestedCategory || "General";
+      const date =
+        parsed.date || new Date().toISOString().split("T")[0];
 
       addMessage({
         role: "assistant",
-        text: `🧾 ${parsed.note} RM${parsed.amount}`,
+        text:
+          `🧾 Receipt\n\n` +
+          `🏷 Title: ${title}\n` +
+          `💰 Amount: RM ${amount}\n` +
+          `📂 Category: ${category}\n` +
+          `📅 Date: ${date}\n\n` +
+          `✅ Expense added successfully`,
         time: new Date().toLocaleTimeString(),
+      });
+
+      goToAddExpense({
+        scannedTitle: title,
+        scannedAmount: String(amount),
+        scannedCategory: category,
+        scannedDate: date,
+        scanId: Date.now().toString(),
       });
 
       return;
@@ -751,6 +797,7 @@ const handleExpense = async (text) => {
 
     formData.append("text", text);
     formData.append("userId", String(user.user_id));
+    formData.append("flow", activeFlow);
 
     const res = await fetch(`${API_URL}/transcribe`, {
       method: "POST",
@@ -790,6 +837,7 @@ const handleExpense = async (text) => {
       scannedAmount: String(amount),
       scannedCategory: category,
       scannedDate: date,
+      scanId: Date.now().toString(),
     });
 
     setActiveFlow(null);
@@ -805,8 +853,6 @@ const handleExpense = async (text) => {
     });
   }
 };
-
-
 
 
 
@@ -841,6 +887,7 @@ const handleBudgetFlow = async (text) => {
       body: JSON.stringify({
         text,
         userId: user.user_id,
+        flow: activeFlow
       }),
     });
 
@@ -909,10 +956,10 @@ const handleRegularPaymentFlow = async (text) => {
   console.log("📩 REGULAR PAYMENT INPUT:", text);
 
   try {
-    // ❗ USE TRANSCRIBE (your current flow)
     const formData = new FormData();
     formData.append("text", text);
     formData.append("userId", String(user.user_id));
+    formData.append("flow", "regularPayment"); // 🔥 HARD FIX
 
     const res = await fetch(`${API_URL}/transcribe`, {
       method: "POST",
@@ -920,20 +967,37 @@ const handleRegularPaymentFlow = async (text) => {
     });
 
     const data = await res.json();
+
+    // console.log("🧠 BACKEND RESPONSE:", data);
+    console.log("🔍 FULL RAW RESPONSE:", JSON.stringify(data, null, 2));
+
+    // ❗ SAFE CHECK (VERY IMPORTANT)
+    if (!data || data.error || !data.result) {
+      console.log("❌ INVALID RESPONSE:", data);
+
+      addMessage({
+        role: "assistant",
+        text:
+          data?.error ||
+          "❌ Failed to process regular payment",
+        time: timeNow,
+      });
+
+      return;
+    }
+
     const parsed = data.result;
 
-    console.log("🧠 PARSED FROM TRANSCRIBE:", parsed);
+    const title = parsed.note || parsed.title || "Untitled";
+    const amount = parsed.amount || 0;
+    const category = parsed.suggestedCategory || parsed.category || "General";
 
-    // ✅ MAP CORRECTLY
-    const title = parsed.note || "Untitled";
-    const amount = parsed.amount || "";
-    const category = parsed.suggestedCategory || "General";
-
-    // ❗ manually detect frequency (since transcribe doesn't)
     let frequency = "Monthly";
-    if (text.includes("weekly")) frequency = "Weekly";
-    if (text.includes("daily")) frequency = "Daily";
-    if (text.includes("yearly")) frequency = "Yearly";
+    const t = text.toLowerCase();
+
+    if (t.includes("weekly")) frequency = "Weekly";
+    if (t.includes("daily")) frequency = "Daily";
+    if (t.includes("yearly")) frequency = "Yearly";
 
     addMessage({
       role: "assistant",
@@ -942,28 +1006,39 @@ const handleRegularPaymentFlow = async (text) => {
         `📌 Title: ${title}\n` +
         `📂 Category: ${category}\n` +
         `💰 Amount: RM ${amount}\n` +
-        `🔄 Frequency: ${frequency}\n\n` +
-        `You can edit it below.`,
+        `🔄 Frequency: ${frequency}\n`,
       time: timeNow,
     });
 
-    router.push({
-      pathname: "/addRegularPayment",
-      params: {
-        title,
-        scannedAmount: String(amount),
-        scannedCategory: category,
-        frequency,
-        type: "expense",
-      },
-    });
+    console.log("🚀 NAVIGATING TO ADD REGULAR PAYMENT");
+
+    setTimeout(() => {
+      router.push({
+        pathname: "/addRegularPayment",
+        params: {
+          title,
+          scannedAmount: String(amount),
+          scannedCategory: category,
+          frequency,
+          type: "regular_payment",
+          scanId: Date.now().toString(),
+        },
+      });
+    }, 100);
 
     setActiveFlow(null);
 
   } catch (err) {
     console.log("❌ ERROR:", err);
+
+    addMessage({
+      role: "assistant",
+      text: "❌ Failed to process regular payment",
+      time: timeNow,
+    });
   }
 };
+
 
 
   if (!user) {
