@@ -141,12 +141,13 @@ You are an AI intent classifier.
 
 Classify the user's request into ONE of these intents:
 
-1. add_expense
-2. add_income
-3. query_total_spent
-4. query_category_spent
-5. query_summary
-6. unknown
+INTENTS:
+- add_expense → user is adding spending (e.g. "buy food 10", "spent 20")
+- query_total → asking total spending (e.g. "how much did I spend last week", "total spent this month")
+- query_category → spending by category
+- query_summary → breakdown of spending
+- unknown → anything not related to finance
+
 
 User input:
 "{text}"

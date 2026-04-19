@@ -29,6 +29,7 @@ export default function ChatbotScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [pendingExpense, setPendingExpense] = useState(null);
+  const isProcessingVoiceRef = useRef(false);
 
 
   const [isRecording, setIsRecording] = useState(false);
@@ -450,20 +451,25 @@ export default function ChatbotScreen() {
     }
   };
 
-    const stopRecording = async () => {
+  const stopRecording = async () => {
     try {
       if (!recordingRef.current) return;
 
       console.log("🛑 STOP RECORDING");
 
-      await recordingRef.current.stopAndUnloadAsync();
+      const recording = recordingRef.current;
 
-      const uri = recordingRef.current.getURI();
-
+      // 🔥 IMPORTANT: clear immediately to prevent double stop
       recordingRef.current = null;
       setIsRecording(false);
 
-      // show temporary UI
+      await recording.stopAndUnloadAsync();
+
+      const uri = recording.getURI();
+
+      if (!uri) return;
+
+      // show UI feedback (safe now)
       setMessages((prev) => [
         ...prev,
         {
@@ -473,7 +479,7 @@ export default function ChatbotScreen() {
         },
       ]);
 
-      // ONLY transcribe → then send to chatbot
+      // 🔥 CALL ONLY ONCE
       await sendAudioToBackend(uri);
 
     } catch (err) {
@@ -484,12 +490,15 @@ export default function ChatbotScreen() {
 
   
 const sendAudioToBackend = async (uri = null, textInput = null) => {
+  if (!uri && !textInput) return;
+
+  if (isProcessingVoiceRef.current) return;
+
+  isProcessingVoiceRef.current = true;
   setLoading(true);
 
   try {
-    console.log("🎤 UPLOADING AUDIO:", uri);
-
-const formData = new FormData();
+    const formData = new FormData();
 
     if (uri) {
       formData.append("file", {
@@ -510,74 +519,60 @@ const formData = new FormData();
       body: formData,
     });
 
-    const textResponse = await res.text();
-    console.log("🔥 RAW RESPONSE:", textResponse);
-
-    let data;
-    try {
-      data = JSON.parse(textResponse);
-    } catch (e) {
-      console.log("❌ NOT JSON:", textResponse);
-      throw new Error("Server did not return JSON");
-    }
+    const data = await res.json();
 
     if (data.error) throw new Error(data.error);
 
-    // =========================
-    // 🔥 ALWAYS GET TRANSCRIPT
-    // =========================
     const userText = data.text || "";
 
-    // =========================
-    // 🧑 SHOW WHAT USER SAID (ALWAYS)
-    // =========================
     if (userText) {
       addMessage({
         role: "user",
-        text: userText,   // 👈 THIS is what you speak
+        text: uri ? `🎤 ${userText}` : userText,
         time: new Date().toLocaleTimeString(),
       });
     }
 
-    // =========================
-    // 🤖 CASE 1: CHATBOT ANSWER
-    // =========================
+    // ✅ HANDLE RESPONSE HERE (NOT calling handleUserInput again)
     if (data.type === "answer") {
       addMessage({
         role: "assistant",
         text: data.answer,
         time: new Date().toLocaleTimeString(),
       });
+      return;
+    }
+
+    if (data.type === "expense") {
+      // forward to expense UI
+      const parsed = data.result;
+
+      addMessage({
+        role: "assistant",
+        text: `🧾 ${parsed.note} RM${parsed.amount}`,
+        time: new Date().toLocaleTimeString(),
+      });
 
       return;
     }
 
-    // =========================
-    // 🧠 CASE 2: NORMAL EXPENSE FLOW
-    // =========================
-    if (!userText) {
-      throw new Error("No transcription received");
-    }
-
-    console.log("🗣 TRANSCRIBED:", userText);
-
-    // handleUserInput(userText, "voice");
-
   } catch (err) {
-    console.log("❌ Voice error:", err);
+    console.log("❌ Error:", err);
 
     addMessage({
       role: "assistant",
-      text: "❌ Voice processing failed",
+      text: "❌ Failed to process",
       time: new Date().toLocaleTimeString(),
     });
 
-    Alert.alert("Error", err.message);
+  } finally {
+    setLoading(false);
+
+    setTimeout(() => {
+      isProcessingVoiceRef.current = false;
+    }, 300);
   }
-
-  setLoading(false);
 };
-
 
 
 ////////////////////////////////////////////////////////////
@@ -586,36 +581,31 @@ const formData = new FormData();
 // HANDLE USER INPUT (TEXT + VOICE)
 // =========================
 const handleUserInput = async (input, source = "text") => {
-  const text = typeof input === "string" ? input : input?.text;
-  const finalText = text?.trim();
-  if (!finalText) return;
+  const text = input?.trim?.() || "";
+  if (!text) return;
 
-  addMessage({
-    role: "user",
-    text: source === "voice" ? `🎤 ${finalText}` : finalText,
-    time: new Date().toLocaleTimeString(),
-  });
+  console.log("📥 ACTIVE FLOW:", activeFlow);
 
-  // ONLY ONE FLOW
+  // =====================
+  // STRICT FLOW MODE
+  // =====================
   if (activeFlow === "expense") {
-    await handleExpense(finalText);
-    return;
+    return handleExpense(text);
   }
+
   if (activeFlow === "budget") {
-    await handleBudgetFlow(finalText);
-    return;
+    return handleBudgetFlow(text);
   }
- 
+
   if (activeFlow === "regularPayment") {
-    await handleRegularPaymentFlow(finalText);
-    return;
+    return handleRegularPaymentFlow(text);
   }
 
-  await sendAudioToBackend(null, finalText);
+  // =====================
+  // NORMAL CHAT MODE
+  // =====================
+  return sendAudioToBackend(null, text);
 };
-
-
-
 
 
 const sendMessageToAI = async (message) => {
@@ -760,6 +750,11 @@ const handleExpense = async (text) => {
     const data = await res.json();
 
     if (data.error) throw new Error(data.error);
+
+    if (!data.result) {
+      console.log("⚠️ Backend response:", data);
+      throw new Error("No parsed result");
+    }
 
     const parsed = data.result;
 

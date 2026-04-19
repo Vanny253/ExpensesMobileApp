@@ -69,28 +69,21 @@ export default function ChartScreen() {
       const now = new Date();
       const year = now.getFullYear();
 
-      const startOfYear = new Date(year, 0, 1);
-      const today = new Date();
+      // Start from 1 Jan
+      let currentStart = new Date(year, 0, 1);
 
-      let currentStart = new Date(startOfYear);
+      // move to Monday
+      const day = currentStart.getDay();
+      const diffToMonday = (day === 0 ? -6 : 1 - day);
+      currentStart.setDate(currentStart.getDate() + diffToMonday);
+
       let weekIndex = 1;
 
-      while (currentStart <= today) {
+      while (currentStart <= now) {
         let currentEnd = new Date(currentStart);
+        currentEnd.setDate(currentStart.getDate() + 6);
 
-        // Week 1 special (partial week until Saturday)
-        if (weekIndex === 1) {
-          const day = currentStart.getDay(); // 0=Sun, 4=Thu
-          const daysToSaturday = (6 - day + 7) % 7;
-          currentEnd.setDate(currentStart.getDate() + daysToSaturday);
-        } else {
-          currentEnd.setDate(currentStart.getDate() + 6);
-        }
-
-        // Don't go beyond today
-        if (currentEnd > today) {
-          currentEnd = today;
-        }
+        if (currentEnd > now) currentEnd = now;
 
         const formatDate = (date) =>
           date.toLocaleDateString("en-GB", {
@@ -98,14 +91,12 @@ export default function ChartScreen() {
             month: "short",
           });
 
+        // IMPORTANT: keep SAME format as your UI expects (split by \n)
         labels.push(
-          `Week ${weekIndex}\n${formatDate(currentStart)} - ${formatDate(currentEnd)}`
+          `Week ${weekIndex}\n(${formatDate(currentStart)} - ${formatDate(currentEnd)})`
         );
 
-        // Move to next week
-        currentStart = new Date(currentEnd);
-        currentStart.setDate(currentStart.getDate() + 1);
-
+        currentStart.setDate(currentStart.getDate() + 7);
         weekIndex++;
       }
     }
@@ -222,31 +213,33 @@ export default function ChartScreen() {
     // =========================
     else if (timeframe === "week") {
       const label = subPeriodsList?.[subPeriod];
+      if (!label) return;
 
-      if (!label || typeof label !== "string") return;
+      const match = label.match(/\((.*)\)/);
+      if (!match) return;
 
-      const parts = label.split("\n");
-
-      if (!parts[1]) return; // extra safety
-      const dateRange = parts[1]; // "1 Jan - 3 Jan"
-
+      const dateRange = match[1]; // "1 Jan - 4 Jan"
       const [startStr, endStr] = dateRange.split(" - ");
 
-      const year = new Date().getFullYear();
+      const months = {
+        Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+        Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
+      };
 
       const parseDate = (str) => {
-        const [day, monthStr] = str.split(" ");
-
-        const months = {
-          Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
-          Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
-        };
+        const [day, monthStr] = str.trim().split(" ");
+        const now = new Date();
+        const year = now.getFullYear();
 
         return new Date(year, months[monthStr], Number(day));
       };
 
       const startDate = parseDate(startStr);
       const endDate = parseDate(endStr);
+
+      // force full-day range safety
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
 
       const filtered = expenses.filter((item) => {
         const date = new Date(item.date);
