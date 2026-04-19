@@ -122,29 +122,30 @@ const TransactionForm = ({ type }) => {
       ? DEFAULT_EXPENSE_CATEGORIES
       : DEFAULT_INCOME_CATEGORIES;
 
-  const params = useLocalSearchParams();
-  const [pendingAI, setPendingAI] = useState(null);
+      
+    const [title, setTitle] = useState("");
+    const [amount, setAmount] = useState("");
+    const [category, setCategory] = useState("");
+    const [date, setDate] = useState(new Date());
+    
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    
+    const [categories, setCategories] = useState([]);
+    const [removedKeys, setRemovedKeys] = useState([]);
+    
+    // ⭐ IMPORTANT: only apply AI/OCR params ONCE
+    const [prefilled, setPrefilled] = useState(false);
+    const [pendingAI, setPendingAI] = useState(null);
+    const params = useLocalSearchParams();
+    const [lastScanId, setLastScanId] = useState(null);
 
-  const [title, setTitle] = useState("");
-  const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState("");
-  const [date, setDate] = useState(new Date());
+    const getKey = (cat) => (cat.id ? `id:${cat.id}` : `name:${cat.name}`);
 
-  const [showDatePicker, setShowDatePicker] = useState(false);
+    const normalize = (str) =>
+      str?.toLowerCase().trim().replace(/[^a-z0-9]/g, "");
 
-  const [categories, setCategories] = useState([]);
-  const [removedKeys, setRemovedKeys] = useState([]);
-
-  // ⭐ IMPORTANT: only apply AI/OCR params ONCE
-  const [prefilled, setPrefilled] = useState(false);
-
-  const getKey = (cat) => (cat.id ? `id:${cat.id}` : `name:${cat.name}`);
-
-  const normalize = (str) =>
-    str?.toLowerCase().trim().replace(/[^a-z0-9]/g, "");
-
-  const resolveCategoryId = (aiCategory) => {
-    if (!aiCategory) return "";
+    const resolveCategoryId = (aiCategory) => {
+      if (!aiCategory) return "";
 
     const input = normalize(aiCategory);
 
@@ -169,50 +170,19 @@ const TransactionForm = ({ type }) => {
   // =========================
   // RESET WHEN USER ENTERS SCREEN (MANUAL MODE)
   // =========================
-  useFocusEffect(
-    useCallback(() => {
-      setTitle("");
-      setAmount("");
-      setCategory("");
-      setDate(new Date());
-      setPrefilled(false); // allow new AI fill next time
-    }, [])
-  );
+    useFocusEffect(
+      useCallback(() => {
+        setTitle("");
+        setAmount("");
+        setCategory("");
+        setDate(new Date());
+        setPrefilled(false);
+        setPendingAI(null);
+        setLastScanId(null);
+      }, [])
+    );
 
-  // =========================
-  // APPLY AI / OCR / CHATBOT PREFILL (ONLY ONCE)
-  // =========================
   useEffect(() => {
-    if (prefilled) return;
-    if (!params) return;
-
-    const scannedAmount = params.scannedAmount ?? params.amount;
-    const scannedDate = params.scannedDate ?? params.date;
-    const scannedTitle = params.scannedTitle ?? params.title;
-    const scannedCategory = params.scannedCategory;
-
-    if (!scannedAmount && !scannedDate && !scannedTitle && !scannedCategory)
-      return;
-
-    console.log("📥 AI PREFILL RECEIVED:", params);
-
-    if (scannedTitle) setTitle(String(scannedTitle));
-    if (scannedAmount) setAmount(String(scannedAmount));
-
-    if (scannedDate) {
-      const d = new Date(scannedDate);
-      if (!isNaN(d.getTime())) setDate(d);
-    }
-
-    // ⚠️ DON'T set category yet (wait for categories load)
-    if (scannedCategory) {
-        setPendingAI(scannedCategory);
-      }
-
-      setPrefilled(true);
-    }, [params]);
-
-    useEffect(() => {
     if (!pendingAI) return;
     if (categories.length === 0) return;
 
@@ -224,6 +194,52 @@ const TransactionForm = ({ type }) => {
 
     setPendingAI(null);
   }, [categories, pendingAI]);
+
+  // =========================
+  // APPLY AI / OCR / CHATBOT PREFILL (ONLY ONCE)
+  // =========================
+
+useEffect(() => {
+  const {
+    scannedAmount,
+    scannedDate,
+    scannedTitle,
+    scannedCategory,
+    scanId,
+  } = params;
+
+  if (!scanId) return;
+
+  // 🔥 prevent duplicate scan (THIS FIXES YOUR BUG)
+  if (scanId === lastScanId) return;
+
+  setLastScanId(scanId);
+
+  console.log("📥 PREFILL RECEIVED:", params);
+
+  if (scannedTitle) setTitle(String(scannedTitle));
+  if (scannedAmount) setAmount(String(scannedAmount));
+
+  // DATE FIX (DD/MM/YYYY)
+  const parseDMY = (str) => {
+    if (!str) return null;
+    const [d, m, y] = str.split("/");
+    return new Date(y, m - 1, d);
+  };
+
+  if (scannedDate) {
+    const parsed = parseDMY(scannedDate);
+    if (parsed && !isNaN(parsed.getTime())) {
+      setDate(parsed);
+    }
+  }
+
+  if (scannedCategory) {
+    setPendingAI(scannedCategory);
+  }
+
+  setPrefilled(true);
+}, [params]);
 
   // =========================
   // LOAD CATEGORIES

@@ -39,6 +39,7 @@ export default function ChatbotScreen() {
     ? `chat_messages_${user.user_id}`
     : "chat_messages_guest";
   const [initialized, setInitialized] = useState(false);
+  
 
   const goToAddExpense = (params) => {
     setLoading(false); // stop UI first
@@ -223,11 +224,15 @@ export default function ChatbotScreen() {
         return updated;
       });
 
-      goToAddExpense({
-        scannedAmount: data.amount || "",
-        scannedTitle: data.title || "",
-        scannedDate: data.date || "",
-        scannedCategory: ""
+      router.push({
+        pathname: "/drawer/tabs/add_expense",
+        params: {
+          scannedAmount: String(data.amount || ""),
+          scannedTitle: data.title || "",
+          scannedDate: data.date || "",
+          scannedCategory: "",
+          scanId: Date.now().toString(), // ⭐ IMPORTANT
+        },
       });
 
     } catch (err) {
@@ -328,10 +333,15 @@ export default function ChatbotScreen() {
       // =========================
       // 1. NAVIGATE (KEEP ORIGINAL)
       // =========================
-      goToAddExpense({
-        scannedAmount,
-        scannedDate,
-        scannedTitle,
+      router.replace({
+        pathname: "/drawer/tabs/add_expense",
+        params: {
+          scannedAmount,
+          scannedDate,
+          scannedTitle,
+          scannedCategory: "",
+          scanId: Date.now().toString(), // 🔥 ADD THIS
+        },
       });
 
       // =========================
