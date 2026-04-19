@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -98,72 +100,70 @@ export default function MainScreen() {
     return resolveCategory(categoryValue, type)?.name || "Unknown";
   };
 
-  /* ---------------- FETCH DATA ---------------- */
-  useEffect(() => {
-    if (!user) {
-      setTransactions([]);
-      setTotalExpense(0);
-      setTotalIncome(0);
-      setBalance(0);
-      setLoading(false);
-      return;
-    }
+  useFocusEffect(
+    useCallback(() => {
+      if (!user) return;
 
-    const fetchData = async () => {
-      setLoading(true);
+      const fetchData = async () => {
+        setLoading(true);
 
-      try {
-        const [expenseData, incomeData, expenseCats, incomeCats] =
-          await Promise.all([
-            getExpenses(user.user_id),
-            getIncome(user.user_id),
-            getCategories(user.user_id, "expense"),
-            getCategories(user.user_id, "income"),
-          ]);
+        try {
+          const [expenseData, incomeData, expenseCats, incomeCats] =
+            await Promise.all([
+              getExpenses(user.user_id),
+              getIncome(user.user_id),
+              getCategories(user.user_id, "expense"),
+              getCategories(user.user_id, "income"),
+            ]);
 
-        setExpenseCategories(expenseCats || []);
-        setIncomeCategories(incomeCats || []);
+          setExpenseCategories(expenseCats || []);
+          setIncomeCategories(incomeCats || []);
 
-        const safeExpenses = Array.isArray(expenseData) ? expenseData : [];
-        const safeIncome = Array.isArray(incomeData) ? incomeData : [];
+          const safeExpenses = Array.isArray(expenseData) ? expenseData : [];
+          const safeIncome = Array.isArray(incomeData) ? incomeData : [];
 
-        const allTransactions = [
-          ...safeExpenses.map((e) => ({ ...e, type: "expense" })),
-          ...safeIncome.map((i) => ({ ...i, type: "income" })),
-        ];
+          const allTransactions = [
+            ...safeExpenses.map((e) => ({ ...e, type: "expense" })),
+            ...safeIncome.map((i) => ({ ...i, type: "income" })),
+          ];
 
-        allTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+          const filtered = allTransactions.filter((item) => {
+            const itemDate = new Date(item.date);
+            return (
+              itemDate.getMonth() === currentDate.getMonth() &&
+              itemDate.getFullYear() === currentDate.getFullYear()
+            );
+          });
 
-        const filtered = allTransactions.filter((item) => {
-          const itemDate = new Date(item.date);
-          return (
-            itemDate.getMonth() === currentDate.getMonth() &&
-            itemDate.getFullYear() === currentDate.getFullYear()
-          );
-        });
+          filtered.sort((a, b) => {
+            const dateDiff = new Date(b.date) - new Date(a.date);
+            if (dateDiff !== 0) return dateDiff;
+            return (b.id || 0) - (a.id || 0);
+          });
 
-        setTransactions(filtered);
+          setTransactions(filtered);
 
-        const expenseTotal = filtered
-          .filter((item) => item.type === "expense")
-          .reduce((sum, item) => sum + (item.amount || 0), 0);
+          const expenseTotal = filtered
+            .filter((item) => item.type === "expense")
+            .reduce((sum, item) => sum + (item.amount || 0), 0);
 
-        const incomeTotal = filtered
-          .filter((item) => item.type === "income")
-          .reduce((sum, item) => sum + (item.amount || 0), 0);
+          const incomeTotal = filtered
+            .filter((item) => item.type === "income")
+            .reduce((sum, item) => sum + (item.amount || 0), 0);
 
-        setTotalExpense(expenseTotal);
-        setTotalIncome(incomeTotal);
-        setBalance(incomeTotal - expenseTotal);
-      } catch (err) {
-        console.error("Failed to fetch transactions", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+          setTotalExpense(expenseTotal);
+          setTotalIncome(incomeTotal);
+          setBalance(incomeTotal - expenseTotal);
+        } catch (err) {
+          console.error("Failed to fetch transactions", err);
+        } finally {
+          setLoading(false);
+        }
+      };
 
-    fetchData();
-  }, [user, currentDate]);
+      fetchData();
+    }, [user, currentDate])
+  );
 
   return (
     <BackgroundWrapper>

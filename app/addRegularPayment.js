@@ -47,7 +47,16 @@ export default function RegularPaymentDetail() {
       return {};
     }
   }, [params.payment]);
-  
+
+
+  const onDateChange = (event, selectedDate) => {
+    setShowDatePicker(false);
+
+    if (selectedDate) {
+      setDate(selectedDate);
+    }
+  };
+
 
   const formatLocalDate = (date) => {
     const year = date.getFullYear();
