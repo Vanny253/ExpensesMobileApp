@@ -3,7 +3,7 @@ from flask import Flask, request, jsonify
 from flask_apscheduler import APScheduler
 from flask_cors import CORS
 from config import SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS
-from models import db, Expense, Income, User, Budget, Category, RegularPayment
+from models import db, Expense, Income, User, Budget, Category, RegularPayment, MonthlyBudget
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 from sqlalchemy import func
@@ -559,6 +559,102 @@ def delete_budget(budget_id):
     return jsonify({"message": "Budget deleted"}), 200
 
 
+
+
+# -----------------------------
+# Budget Monthly endpoints
+# -----------------------------
+
+@app.post("/monthly-budget")
+def set_monthly_budget():
+    try:
+        data = request.json
+
+        user_id = data.get("user_id")
+        amount = data.get("amount")
+        month = data.get("month")
+        year = data.get("year")
+
+        print("DEBUG DATA:", data)
+
+        if not all([user_id, amount, month, year]):
+            return jsonify({"message": "Missing required fields"}), 400
+
+        existing = MonthlyBudget.query.filter_by(
+            user_id=user_id,
+            month=month,
+            year=year
+        ).first()
+
+        if existing:
+            existing.amount = amount
+            db.session.commit()
+
+            return jsonify({"message": "Updated"}), 200
+
+        new_budget = MonthlyBudget(
+            user_id=user_id,
+            amount=amount,
+            month=month,
+            year=year
+        )
+
+        db.session.add(new_budget)
+        db.session.commit()
+
+        return jsonify({"message": "Created"}), 201
+
+    except Exception as e:
+        print("ERROR:", str(e))
+        return jsonify({"message": str(e)}), 500
+
+
+
+@app.get("/monthly-budget/<int:user_id>")
+def get_monthly_budget(user_id):
+    from datetime import datetime
+
+    month = request.args.get("month", type=int)
+    year = request.args.get("year", type=int)
+
+    if not month or not year:
+        now = datetime.now()
+        month = now.month
+        year = now.year
+
+    budget = MonthlyBudget.query.filter_by(
+        user_id=user_id,
+        month=month,
+        year=year
+    ).first()
+
+    if not budget:
+        return jsonify({
+            "amount": 0
+        }), 200
+
+    return jsonify({
+        "id": budget.id,
+        "amount": float(budget.amount),
+        "month": budget.month,
+        "year": budget.year
+    }), 200
+
+
+@app.put("/monthly-budget/<int:id>")
+def update_monthly_budget(id):
+    data = request.json
+    amount = data.get("amount")
+
+    budget = MonthlyBudget.query.get(id)
+
+    if not budget:
+        return jsonify({"message": "Not found"}), 404
+
+    budget.amount = amount
+    db.session.commit()
+
+    return jsonify({"message": "Updated"}), 200
 
 
 # -----------------------------

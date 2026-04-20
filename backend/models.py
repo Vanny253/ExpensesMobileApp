@@ -90,3 +90,12 @@ class RegularPayment(db.Model):
 
     def __repr__(self):
         return f"<RegularPayment {self.title} | {self.type} | {self.amount}>"
+
+
+class MonthlyBudget(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    month = db.Column(db.Integer, nullable=False)
+    year = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now)

@@ -39,3 +39,19 @@ export async function updateBudget(budgetId, amount) {
 export async function deleteBudget(budgetId) {
   return axios.delete(`${API_URL}/budget/${budgetId}`);
 }
+
+
+// Monthly budget API (new)
+export async function setMonthlyBudget(data) {
+  return axios.post(`${API_URL}/monthly-budget`, data);
+}
+
+export async function getMonthlyBudget(userId, month, year) {
+  return axios.get(`${API_URL}/monthly-budget/${userId}`, {
+    params: { month, year },
+  });
+}
+
+export async function updateMonthlyBudget(id, amount) {
+  return axios.put(`${API_URL}/monthly-budget/${id}`, { amount });
+}
