@@ -1669,6 +1669,12 @@ def transcribe():
 
         today = datetime.today().strftime("%Y-%m-%d")
 
+
+        def normalize_category(cat):
+            if not cat:
+                return "other"
+            return cat.lower().strip()
+
         # =========================
         # ADD EXPENSE
         # =========================
@@ -1729,6 +1735,25 @@ def transcribe():
                 print("🧠 RAW AI RESPONSE:", raw)
 
                 result = json.loads(raw)
+
+                category = result.get("suggestedCategory") or result.get("category") or "general"
+                category = category.lower().strip()
+
+                result["category"] = category
+                result["suggestedCategory"] = category
+
+                # =========================
+                # SAFETY FALLBACK FOR AMOUNT
+                # =========================
+                if not result.get("amount") or result["amount"] == 0:
+                    digit_match = re.search(r"(\d+(\.\d{1,2})?)", text)
+                    if digit_match:
+                        result["amount"] = float(digit_match.group())
+                    else:
+                        try:
+                            result["amount"] = float(w2n.word_to_num(text))
+                        except:
+                            result["amount"] = 0
 
                 return jsonify({
                     "type": "regular_payment",
@@ -2136,7 +2161,7 @@ def ai_extract_regular_payment():
 
     for c in known_categories:
         if c in text:
-            category = c.capitalize()
+            category = c.lower().strip()
             break
 
     # -------------------------

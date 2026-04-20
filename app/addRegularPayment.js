@@ -111,7 +111,7 @@ export default function RegularPaymentDetail() {
       ];
 
       const finalCategories = mergedNames.map((name, index) => ({
-        id: index,
+        id: name.toLowerCase().trim(),
         name,
       }));
 
@@ -128,14 +128,23 @@ export default function RegularPaymentDetail() {
     if (!pendingAI) return;
     if (categories.length === 0) return;
 
-    const resolved = resolveCategoryName(pendingAI);
+    const normalized = pendingAI.toLowerCase().trim();
 
     console.log("🧠 AI CATEGORY:", pendingAI);
-    console.log("✅ RESOLVED CATEGORY:", resolved);
 
-    if (resolved) {
-      setCategory(resolved);
-    }
+    
+      const match = categories.find(
+        (c) =>
+          c.id === normalized ||
+          c.name.toLowerCase() === normalized
+      );
+      console.log("🎯 MATCHED CATEGORY:", match);
+
+
+      if (match) {
+        setCategory(match.id);
+        setPendingAI(null);
+      }
 
     setPendingAI(null);
   }, [categories, pendingAI]);
@@ -148,12 +157,17 @@ export default function RegularPaymentDetail() {
 
     setTitle(params.title ?? "");
     setAmount(params.scannedAmount ?? "");
-    setType(params.type ?? "expense");
+    setType(
+      params.type === "regular_payment"
+        ? "expense"
+        : params.type ?? "expense"
+    );
     setFrequency(params.frequency ?? "Monthly");
 
     if (params.scannedCategory) {
-      setPendingAI(params.scannedCategory);
+      setPendingAI(params.scannedCategory.toLowerCase());
     }
+    console.log("📦 CURRENT CATEGORY STATE:", category);
   }, []);
 
 
@@ -236,12 +250,14 @@ export default function RegularPaymentDetail() {
 
         <Text style={styles.label}>Category</Text>
         <Picker
-          selectedValue={category || ""}
+          key={category}
+          selectedValue={category}
           onValueChange={setCategory}
           style={styles.picker}
         >
+          <Picker.Item label="Select Category" value="" />
           {categories.map((cat) => (
-            <Picker.Item key={cat.id} label={cat.name} value={cat.name} />
+            <Picker.Item key={cat.id} label={cat.name} value={cat.id} />
           ))}
         </Picker>
 
