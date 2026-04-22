@@ -139,6 +139,7 @@ const TransactionForm = ({ type }) => {
     const [pendingAI, setPendingAI] = useState(null);
     const params = useLocalSearchParams();
     const [lastScanId, setLastScanId] = useState(null);
+    const normalizeKey = (id) => `id:${String(id).toLowerCase().trim()}`;
 
     const getKey = (cat) => (cat.id ? `id:${cat.id}` : `name:${cat.name}`);
 
@@ -172,6 +173,7 @@ const TransactionForm = ({ type }) => {
   // =========================
     useFocusEffect(
       useCallback(() => {
+        fetchCategories();
         setTitle("");
         setAmount("");
         setCategory("");
@@ -242,36 +244,43 @@ useEffect(() => {
   // =========================
   // LOAD CATEGORIES
   // =========================
+  const fetchCategories = async () => {
+    if (!user) return;
+
+    const customCategories = await getCategories(user.user_id, type);
+    const saved = await AsyncStorage.getItem(STORAGE_KEY);
+    const removed = saved ? JSON.parse(saved) : [];
+
+    const normalizeKey = (id) =>
+      `id:${String(id).toLowerCase().trim()}`;
+
+    const allCategories = [
+      ...defaultCats.map((c) => ({
+        id: String(c.id).toLowerCase().trim(),
+        name: c.name,
+        icon: c.icon || "help-circle",
+      })),
+      ...(customCategories || []).map((c) => ({
+        id: String(c.id).toLowerCase().trim(),
+        name: c.name,
+        icon: c.icon || "help-circle",
+      })),
+    ];
+
+    const filtered = allCategories.filter(
+      (cat) => !removed.includes(normalizeKey(cat.id))
+    );
+
+    setCategories(filtered);
+  };
+
   useEffect(() => {
-    const fetchCategories = async () => {
-      if (!user) return;
-
-      const customCategories = await getCategories(user.user_id, type);
-      const saved = await AsyncStorage.getItem(STORAGE_KEY);
-      const removed = saved ? JSON.parse(saved) : [];
-
-      const allCategories = [
-        ...defaultCats,
-        ...customCategories.map((c) => ({
-          id: c.id,
-          name: c.name,
-          icon: c.icon || "help-circle",
-        })),
-      ];
-
-      const filtered = allCategories.filter(
-        (cat) => !removed.includes(cat.id || cat.name)
-      );
-
-      setCategories(filtered);
-    };
-
     fetchCategories();
   }, [user, type]);
 
-  const filteredCategories = categories.filter(
-    (cat) => !removedKeys.includes(getKey(cat))
-  );
+  // const filteredCategories = categories.filter(
+  //   (cat) => !removedKeys.includes(getKey(cat))
+  // );
 
   // =========================
   // SUBMIT (MANUAL OR AI SAME FLOW)
@@ -343,7 +352,7 @@ useEffect(() => {
 
       <Text style={styles.label}>Category</Text>
       <CategoryDropdown
-        data={filteredCategories}
+        data={categories}
         value={category}
         onChange={setCategory}
         placeholder={`Select ${type} category`}
@@ -361,7 +370,6 @@ useEffect(() => {
 
       {showDatePicker && (
         <DateTimePicker
-          value={date}
           mode="date"
           display="default"
           onChange={(event, selectedDate) => {
