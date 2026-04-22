@@ -102,7 +102,11 @@ export default function MainScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (!user) return;
+      if (!user) {
+      setTransactions([]); 
+      setLoading(false);
+      return;
+    }
 
       const fetchData = async () => {
         setLoading(true);

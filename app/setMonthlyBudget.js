@@ -44,8 +44,7 @@ export default function SetMonthlyBudget() {
       });
 
       Alert.alert("Success", "Monthly budget saved!");
-
-      router.back();
+      router.replace("/drawer/tabs/report");
     } catch (error) {
       console.log("Set Monthly Budget Error:", error);
       Alert.alert("Error", "Failed to save monthly budget.");

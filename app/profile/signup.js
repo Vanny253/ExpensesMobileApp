@@ -20,28 +20,87 @@ export default function SignupScreen() {
   const [gender, setGender] = useState("");
   const [dob, setDob] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [errors, setErrors] = useState({});
   
 
+  const validateEmail = (email) => {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+  };
+
+  const validatePassword = (password) => {
+    const regex = /^(?=.*[A-Z]).{8,}$/;
+    return regex.test(password);
+  };
+
+  const validatePhoneMY = (phone) => {
+    if (!phone) return true; // optional field
+
+    const cleaned = phone.replace(/\D/g, ""); // remove non-digits
+
+    // Malaysian format: starts with 01 and 10-11 digits total
+    const regex = /^01\d{8,9}$/;
+    return regex.test(cleaned);
+  };
+
+
   const handleSignup = async () => {
-    if (!email || !password || !nickname || !gender) {
-      Alert.alert("Error", "Please fill in all required fields");
+
+    let newErrors = {};
+
+    if (!email) {
+      newErrors.email = "Email is required (e.g. example@gmail.com)";
+    } else if (!validateEmail(email)) {
+      newErrors.email =
+        "Please enter a valid email like example@gmail.com (must include @ and domain)";
+    }
+
+    if (!password) {
+      newErrors.password = "Password is required";
+    } else if (!validatePassword(password)) {
+      newErrors.password =
+        "At least 8 characters and 1 uppercase letter required";
+    }
+
+    if (!confirmPassword) {
+      newErrors.confirmPassword = "Please confirm your password";
+    } else if (password !== confirmPassword) {
+      newErrors.confirmPassword = "Passwords do not match";
+    }
+
+    if (!nickname) {
+      newErrors.nickname = "Nickname is required";
+    }
+
+    if (!gender) {
+      newErrors.gender = "Please select gender";
+    }
+
+    if (!validatePhoneMY(phone)) {
+    newErrors.phone =
+      "Invalid phone number format. (must start with 01 and contain 10-11 digits)";
+    }
+
+    // stop if errors exist
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
-    if (password !== confirmPassword) {
-      Alert.alert("Error", "Passwords do not match");
-      return;
-    }
+    // clear errors if valid
+    setErrors({});
+
+    
 
     try {
-      const result = await signupUser({
-        email,
-        password,
-        nickname,
-        phone_number: phone,
-        gender,
-        date_of_birth: dob,
-      });
+      await signupUser({
+      email,
+      password,
+      nickname,
+      phone_number: phone,
+      gender,
+      date_of_birth: dob,
+    });
 
       Alert.alert("Signup successful!", "Please login now.");
       router.push("./login"); // go to login page
@@ -62,7 +121,9 @@ export default function SignupScreen() {
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
+          
         />
+        {errors.email && <Text style={styles.error}>{errors.email}</Text>}
 
         <View style={styles.passwordContainer}>
           <TextInput
@@ -71,7 +132,7 @@ export default function SignupScreen() {
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
-          />
+          />          
           <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
             <Ionicons
               name={showPassword ? "eye-off" : "eye"}
@@ -80,6 +141,8 @@ export default function SignupScreen() {
             />
           </TouchableOpacity>
         </View>
+        {errors.password && <Text style={styles.error}>{errors.password}</Text>}
+
 
         <View style={styles.passwordContainer}>
           <TextInput
@@ -97,6 +160,8 @@ export default function SignupScreen() {
             />
           </TouchableOpacity>
         </View>
+          <Text style={styles.error}>{errors.confirmPassword}</Text>
+
 
         <TextInput
           style={styles.input}
@@ -104,6 +169,7 @@ export default function SignupScreen() {
           value={nickname}
           onChangeText={setNickname}
         />
+        {errors.nickname && <Text style={styles.error}>{errors.nickname}</Text>}
 
         <TextInput
           style={styles.input}
@@ -112,6 +178,7 @@ export default function SignupScreen() {
           onChangeText={setPhone}
           keyboardType="phone-pad"
         />
+        {errors.phone && <Text style={styles.error}>{errors.phone}</Text>}
 
         <View style={styles.pickerContainer}>
           <Picker
@@ -123,6 +190,7 @@ export default function SignupScreen() {
             <Picker.Item label="Female" value="female" />
           </Picker>
         </View>
+        {errors.gender && <Text style={styles.error}>{errors.gender}</Text>}
 
         <TouchableOpacity
           style={styles.input}
@@ -209,5 +277,12 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginBottom: 15,
     overflow: "hidden",
+  },
+
+  error: {
+    color: "red",
+    fontSize: 13,
+    marginBottom: 10,
+    marginTop: -10,
   },
 });
