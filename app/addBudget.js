@@ -20,6 +20,8 @@ import AppHeader from "../components/appHeader";
 import BackgroundWrapper from "../components/backgroundWrapper";
 import { DEFAULT_EXPENSE_CATEGORIES } from "../components/defaultIcon";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 export default function AddBudget() {
   const { user } = useUser();
   const router = useRouter();
@@ -29,6 +31,7 @@ export default function AddBudget() {
   const [amount, setAmount] = useState("");
   const [categories, setCategories] = useState([]);
   const [prefilled, setPrefilled] = useState(false);
+  const STORAGE_KEY = "removed_categories";
 
   // =========================
   // RESET ON FOCUS
@@ -78,59 +81,71 @@ export default function AddBudget() {
   // =========================
   // LOAD CATEGORIES
   // =========================
-const loadCategories = async () => {
-  if (!user) return;
+  const loadCategories = async () => {
+    if (!user) return;
 
-  try {
-    const dbCategories = await getCategories(user.user_id, "expense");
+    try {
+      const dbCategories = await getCategories(user.user_id, "expense");
 
-    // =========================
-    // NORMALIZE DB CATEGORIES
-    // =========================
-    const safeDb = (dbCategories || []).map((c) => {
-      const id = c?.id ? String(c.id).toLowerCase().trim() : "";
-      const name = c?.name ? String(c.name).trim() : "";
+      // 🔥 LOAD REMOVED CATEGORIES
+      const saved = await AsyncStorage.getItem(STORAGE_KEY);
+      const removed = saved ? JSON.parse(saved) : [];
 
-      return {
-        id,
-        name,
-      };
-    });
+      const normalizeKey = (id) =>
+        `id:${String(id).toLowerCase().trim()}`;
 
-    // =========================
-    // NORMALIZE DEFAULT CATEGORIES
-    // =========================
-    const defaultCats = DEFAULT_EXPENSE_CATEGORIES.map((c) => ({
-      id: String(c.id).toLowerCase().trim(),
-      name: c.name,
-    }));
+      // =========================
+      // NORMALIZE DB CATEGORIES
+      // =========================
+      const safeDb = (dbCategories || []).map((c) => {
+        const id = c?.id ? String(c.id).toLowerCase().trim() : "";
+        const name = c?.name ? String(c.name).trim() : "";
 
-    // =========================
-    // MERGE BOTH LISTS
-    // =========================
-    const merged = [...defaultCats, ...safeDb];
+        return { id, name };
+      });
 
-    // =========================
-    // REMOVE DUPLICATES (BY ID)
-    // =========================
-    const unique = merged.filter(
-      (item, index, self) =>
-        item.id &&
-        index === self.findIndex((t) => t.id === item.id)
-    );
+      // =========================
+      // NORMALIZE DEFAULT CATEGORIES
+      // =========================
+      const defaultCats = DEFAULT_EXPENSE_CATEGORIES.map((c) => ({
+        id: String(c.id).toLowerCase().trim(),
+        name: c.name,
+      }));
 
-    setCategories(unique);
+      // =========================
+      // MERGE BOTH LISTS
+      // =========================
+      const merged = [...defaultCats, ...safeDb];
 
-    // =========================
-    // AUTO SELECT FIRST CATEGORY (SAFE)
-    // =========================
-    if (!category && unique.length > 0) {
-      setCategory(unique[0].id);
+      // =========================
+      // REMOVE DUPLICATES
+      // =========================
+      const unique = merged.filter(
+        (item, index, self) =>
+          item.id &&
+          index === self.findIndex((t) => t.id === item.id)
+      );
+
+      // =========================
+      // 🔥 REMOVE INACTIVE CATEGORIES (FIX)
+      // =========================
+      const filtered = unique.filter(
+        (cat) => !removed.includes(normalizeKey(cat.id))
+      );
+
+      setCategories(filtered);
+
+      // =========================
+      // SAFE AUTO SELECT
+      // =========================
+      if (!category && filtered.length > 0) {
+        setCategory(filtered[0].id);
+      }
+    } catch (err) {
+      console.log("CATEGORY LOAD ERROR:", err);
     }
-  } catch (err) {
-    console.log("CATEGORY LOAD ERROR:", err);
-  }
-};
+  };
+
 
   useEffect(() => {
     loadCategories();

@@ -22,6 +22,7 @@ import {
   DEFAULT_EXPENSE_CATEGORIES,
   DEFAULT_INCOME_CATEGORIES,
 } from "../components/defaultIcon";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function RegularPaymentDetail() {
   const { user } = useUser();
@@ -38,6 +39,7 @@ export default function RegularPaymentDetail() {
   const params = useLocalSearchParams();
   const [pendingAI, setPendingAI] = useState(null);
   const hasLoadedRef = useRef(false);
+  const STORAGE_KEY = "removed_categories";
 
 
   const payment = useMemo(() => {
@@ -96,29 +98,34 @@ export default function RegularPaymentDetail() {
     try {
       const userCategories = await getCategories(user.user_id, type);
 
-      const userCategoryNames = userCategories.map((c) => c.name);
+      const saved = await AsyncStorage.getItem(STORAGE_KEY);
+      const removed = saved ? JSON.parse(saved) : [];
+
+      const normalizeKey = (id) =>
+        `id:${String(id).toLowerCase().trim()}`;
 
       const defaultCategories =
         type === "expense"
           ? DEFAULT_EXPENSE_CATEGORIES
           : DEFAULT_INCOME_CATEGORIES;
 
-      const defaultNames = defaultCategories.map((c) => c.name);
-
-      const mergedNames = [
-        ...defaultNames,
-        ...userCategoryNames.filter((name) => !defaultNames.includes(name)),
+      const allCategories = [
+        ...defaultCategories.map((c) => ({
+          id: String(c.id).toLowerCase().trim(),
+          name: c.name,
+        })),
+        ...(userCategories || []).map((c) => ({
+          id: String(c.id).toLowerCase().trim(),
+          name: c.name,
+        })),
       ];
 
-      const finalCategories = mergedNames.map((name, index) => ({
-        id: name.toLowerCase().trim(),
-        name,
-      }));
+      // 🔥 IMPORTANT FIX: filter removed categories
+      const filtered = allCategories.filter(
+        (cat) => !removed.includes(normalizeKey(cat.id))
+      );
 
-      setCategories(finalCategories);
-
-      // ❌ DO NOT AUTO SET CATEGORY HERE ANYMORE
-      // Let AI or params control it only
+      setCategories(filtered);
     } catch (error) {
       Alert.alert("Error", "Failed to load categories");
     }
