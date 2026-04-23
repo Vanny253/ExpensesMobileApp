@@ -11,6 +11,8 @@ import {
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import BackgroundWrapper from "../components/backgroundWrapper";
+import AppHeader from "../components/appHeader";
+
 
 // API
 import { setMonthlyBudget } from "../api/budgetApi";
@@ -56,6 +58,10 @@ export default function SetMonthlyBudget() {
 
   return (
     <BackgroundWrapper>
+      <AppHeader
+        title="Monthly Budget Report"
+        backRoute="/drawer/tabs/report"
+      />
       <View style={styles.container}>
         <Text style={styles.title}>Set Monthly Budget</Text>
 

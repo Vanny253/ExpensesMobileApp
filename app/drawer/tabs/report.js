@@ -14,7 +14,7 @@ import { getMonthlyBudget } from "../../../api/budgetApi";
 import { getBudgets } from "../../../api/budgetApi";
 import { useRouter } from "expo-router";
 import BackgroundWrapper from "../../../components/backgroundWrapper";
-
+import Svg, { Circle } from "react-native-svg";
 
 export default function ReportScreen() {
   const { user } = useUser();
@@ -22,101 +22,117 @@ export default function ReportScreen() {
 
   const [expenses, setExpenses] = useState(0);
   const [income, setIncome] = useState(0);
-  const [budget, setBudget] = useState(0);
-  const [remaining, setRemaining] = useState(0);
+
+  // 🟦 Budget Overview (category-based)
+  const [categoryBudgetTotal, setBudget] = useState(0);
+  const [categoryBudgetRemaining, setRemaining] = useState(0);
+
   const [loading, setLoading] = useState(true);
 
   const currentDate = new Date();
   const currentMonth = currentDate.getMonth();
   const currentYear = currentDate.getFullYear();
 
-  const [monthlyBudget, setMonthlyBudget] = useState(0);
+  // 🟩 Monthly Budget (user limit)
+  const [monthlyBudgetLimit, setMonthlyBudget] = useState(0);
 
-  // const monthlyExpenses = expenses;
-  // const monthlyRemaining =
-  //   monthlyBudget > 0 ? monthlyBudget - monthlyExpenses : 0;
+  // monthly expenses (this month only)
+  const monthlySpent = expenses || 0;
 
-  // const monthlyPercentage =
-  //   monthlyBudget > 0 ? (monthlyRemaining / monthlyBudget) * 100 : 0;
-  
-  const monthlyExpenseTotal = expenses || 0;
-
-  const monthlyRemaining =
-    monthlyBudget > 0 ? monthlyBudget - monthlyExpenseTotal : 0;
+  const monthlyBudgetRemaining =
+    monthlyBudgetLimit > 0 ? monthlyBudgetLimit - monthlySpent : 0;
 
   const monthlyPercentage =
-    monthlyBudget > 0
-      ? (monthlyRemaining / monthlyBudget) * 100
+    monthlyBudgetLimit > 0
+      ? (monthlyBudgetRemaining / monthlyBudgetLimit) * 100
       : 0;
 
+  const size = 80;
+  const strokeWidth = 6;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
 
-  
+  const progress =
+    monthlyBudgetLimit > 0
+      ? Math.min(
+          Math.max(
+            ((monthlyBudgetLimit - monthlySpent) / monthlyBudgetLimit) * 100,
+            0
+          ),
+          100
+        )
+      : 0;
+
+  const strokeDashoffset =
+    circumference - (progress / 100) * circumference;
+
   const fetchReport = async () => {
     if (!user) return;
     setLoading(true);
 
     try {
-      // Fetch expenses
       const allExpenses = await getExpenses(user.user_id);
       const monthlyExpenses = allExpenses.filter((e) => {
         const date = new Date(e.date);
-        return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+        return (
+          date.getMonth() === currentMonth &&
+          date.getFullYear() === currentYear
+        );
       });
-      const totalExpenses = monthlyExpenses.reduce((sum, e) => sum + e.amount, 0);
+
+      const totalExpenses = monthlyExpenses.reduce(
+        (sum, e) => sum + e.amount,
+        0
+      );
       setExpenses(totalExpenses);
 
-      // Fetch income
       const allIncome = await getIncome(user.user_id);
       const monthlyIncome = allIncome.filter((i) => {
         const date = new Date(i.date);
-        return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+        return (
+          date.getMonth() === currentMonth &&
+          date.getFullYear() === currentYear
+        );
       });
-      const totalIncome = monthlyIncome.reduce((sum, i) => sum + i.amount, 0);
+
+      const totalIncome = monthlyIncome.reduce(
+        (sum, i) => sum + i.amount,
+        0
+      );
       setIncome(totalIncome);
 
-      // Fetch budgets
+      // 🟦 Budget Overview (category budgets)
       const budgetsData = await getBudgets(user.user_id);
-      const categoryBudget = budgetsData.reduce((sum, b) => sum + b.budget, 0);
-      const categoryRemaining = budgetsData.reduce((sum, b) => sum + b.remaining, 0);
-      // const res = await getMonthlyBudget(
-      //   user.user_id,
-      //   currentMonth + 1,
-      //   currentYear
-      // );
 
-      // const data = res.data?.[0]; // single record
+      const categoryBudget = budgetsData.reduce(
+        (sum, b) => sum + b.budget,
+        0
+      );
 
-      // const mBudget = data ? Number(data.amount) : 0;
-
-      // setMonthlyBudget(mBudget);
+      const categoryRemaining = budgetsData.reduce(
+        (sum, b) => sum + b.remaining,
+        0
+      );
 
       setBudget(categoryBudget);
       setRemaining(categoryRemaining);
 
-
-      // MONTHLY BUDGET (NEW)
+      // 🟩 Monthly Budget (limit)
       const res = await getMonthlyBudget(
         user.user_id,
         currentMonth + 1,
         currentYear
       );
 
-      console.log("MONTHLY BUDGET API:", res.data);
-
       let mBudget = 0;
 
-      // case 1: array response
       if (Array.isArray(res.data) && res.data.length > 0) {
         mBudget = Number(res.data[0].amount || 0);
-      }
-
-      // case 2: object response
-      else if (res.data && typeof res.data === "object") {
+      } else if (res.data && typeof res.data === "object") {
         mBudget = Number(res.data.amount || 0);
       }
 
       setMonthlyBudget(mBudget);
-
     } catch (err) {
       console.log("Report Error:", err);
     } finally {
@@ -129,12 +145,15 @@ export default function ReportScreen() {
   }, [user]);
 
   const balance = income - expenses;
-  const percentage = budget > 0 ? (remaining / budget) * 100 : 0;
-  const monthName = currentDate.toLocaleString("default", { month: "short" });
-  const budgetExpenses = budget - remaining;
 
+  const categoryBudgetSpent =
+    categoryBudgetTotal - categoryBudgetRemaining;
 
-  // Navigate to reportMonthlyStatistic page
+  const monthName = currentDate.toLocaleString("default", {
+    month: "short",
+  });
+
+  // NAVIGATION
   const goToMonthlyStatistic = () => {
     if (!user) return;
     router.push({
@@ -143,35 +162,32 @@ export default function ReportScreen() {
     });
   };
 
-  // Navigate to reportMonthlyBudget page
-  const goToMonthlyBudget = () => {
+  const goToBudgetOverview = () => {
     if (!user) return;
     router.push({
-      pathname: "/reportMonthlyBudget",
+      pathname: "/reportBudgetOverview",
       params: { user_id: user.user_id },
     });
   };
 
-    const goToSetMonthlyBudget = () => {
-      if (!user) return;
-      router.push({
-        pathname: "/setMonthlyBudget",
-        params: { user_id: user.user_id },
-      });
-    };
+  const goToSetMonthlyBudget = () => {
+    if (!user) return;
+    router.push({
+      pathname: "/setMonthlyBudget",
+      params: { user_id: user.user_id },
+    });
+  };
 
   return (
     <BackgroundWrapper>
       <ScrollView style={styles.container}>
-        
-        {/* ✅ GUEST MODE */}
+
         {!user && (
           <Text style={styles.guestText}>
             Guest Mode: Please login to view your financial report.
           </Text>
         )}
 
-        {/* USER MODE */}
         {user && (
           <>
             {loading ? (
@@ -182,111 +198,211 @@ export default function ReportScreen() {
               />
             ) : (
               <>
-                {/* Monthly Statistic */}
-                <TouchableOpacity onPress={goToMonthlyStatistic} activeOpacity={0.7}>
+                {/* MONTHLY STATISTIC */}
+                <TouchableOpacity onPress={goToMonthlyStatistic}>
                   <View style={styles.sectionBox}>
-                    <Text style={styles.sectionTitle}>Monthly Statistic</Text>
+                    <Text style={styles.sectionTitle}>
+                      Monthly Statistic
+                    </Text>
 
                     <View style={styles.row}>
                       <Text style={styles.month}>{monthName}</Text>
 
                       <View style={styles.statsRow}>
-                        <Text>Expenses{"\n"}RM {expenses.toFixed(2)}</Text>
-                        <Text>Income{"\n"}RM {income.toFixed(2)}</Text>
-                        <Text>Balance{"\n"}RM {balance.toFixed(2)}</Text>
+                        <Text>
+                          Expenses{"\n"}RM {expenses.toFixed(2)}
+                        </Text>
+                        <Text>
+                          Income{"\n"}RM {income.toFixed(2)}
+                        </Text>
+                        <Text>
+                          Balance{"\n"}RM {balance.toFixed(2)}
+                        </Text>
                       </View>
                     </View>
                   </View>
                 </TouchableOpacity>
 
-                {/* Monthly Budget */}
-                <TouchableOpacity onPress={goToMonthlyBudget} activeOpacity={0.7}>
+                {/* BUDGET OVERVIEW (CATEGORY) */}
+                <TouchableOpacity onPress={goToBudgetOverview}>
                   <View style={styles.sectionBox}>
-                    <Text style={styles.sectionTitle}>Budget Overview</Text>
+                    <Text style={styles.sectionTitle}>
+                      Budget Overview (Categories)
+                    </Text>
 
                     <View style={styles.budgetContainer}>
                       <View
-                        style={[
-                          styles.circle,
-                          {
-                            borderColor: remaining < 0 ? "#f05850c4" : "#007AFF",
-                          },
-                        ]}
+                        style={{
+                          width: size,
+                          height: size,
+                          justifyContent: "center",
+                          alignItems: "center",
+                        }}
                       >
-                        {remaining < 0 ? (
-                          <Text style={{ color: "#f05850c4", fontWeight: "bold", fontSize: 11 }}>
-                            EXCEED
-                          </Text>
-                        ) : (
-                          <>
-                            <Text style={{ fontSize: 12, color: "#555" }}>
-                              Remaining
-                            </Text>
+                        <Svg width={size} height={size}>
+                          {/* BACKGROUND RING */}
+                          <Circle
+                            cx={size / 2}
+                            cy={size / 2}
+                            r={radius}
+                            stroke="#eee"
+                            strokeWidth={strokeWidth}
+                            fill="none"
+                          />
 
-                            <Text style={{ fontWeight: "bold", fontSize: 14 }}>
-                              {percentage.toFixed(0)}%
+                          {/* PROGRESS RING */}
+                          <Circle
+                            cx={size / 2}
+                            cy={size / 2}
+                            r={radius}
+                            stroke={
+                              categoryBudgetRemaining < 0
+                                ? "#f05850c4" // 🔴 EXCEED RED
+                                : "#007AFF"   // 🔵 NORMAL BLUE
+                            }
+                            strokeWidth={strokeWidth}
+                            fill="none"
+                            strokeDasharray={circumference}
+                            strokeDashoffset={
+                              categoryBudgetTotal > 0
+                                ? circumference -
+                                  ((categoryBudgetRemaining < 0
+                                    ? 100
+                                    : (categoryBudgetRemaining / categoryBudgetTotal) * 100) /
+                                      100) *
+                                    circumference
+                                : circumference
+                            }
+                            strokeLinecap="round"
+                            rotation="-90"
+                            originX={size / 2}
+                            originY={size / 2}
+                          />
+                        </Svg>
+
+                        {/* CENTER TEXT */}
+                        <View style={{ position: "absolute", alignItems: "center" }}>
+                          {categoryBudgetRemaining < 0 ? (
+                            <Text style={{ color: "#f05850c4", fontWeight: "bold" }}>
+                              EXCEED
                             </Text>
-                          </>
-                        )}
+                          ) : (
+                            <>
+                              <Text style={{ fontSize: 12 }}>Remaining</Text>
+                              <Text style={{ fontWeight: "bold" }}>
+                                {categoryBudgetTotal > 0
+                                  ? (
+                                      (categoryBudgetRemaining / categoryBudgetTotal) *
+                                      100
+                                    ).toFixed(0)
+                                  : 0}
+                                %
+                              </Text>
+                            </>
+                          )}
+                        </View>
                       </View>
-
                       <View>
-                        <Text>Remaining: RM {remaining.toFixed(2)}</Text>
-                        <Text>Budget: RM {budget.toFixed(2)}</Text>
-                        <Text>Expenses: RM {budgetExpenses.toFixed(2)}</Text>                      
+                        <Text>
+                          Remaining: RM {categoryBudgetRemaining.toFixed(2)}
+                        </Text>
+                        <Text>
+                          Budget: RM {categoryBudgetTotal.toFixed(2)}
+                        </Text>
+                        <Text>
+                          Expenses: RM {categoryBudgetSpent.toFixed(2)}
+                        </Text>
                       </View>
                     </View>
                   </View>
                 </TouchableOpacity>
 
-                {/* Monthly Budget */}
-                <TouchableOpacity onPress={goToSetMonthlyBudget} activeOpacity={0.7}>
+                {/* MONTHLY BUDGET (LIMIT) */}
+                <TouchableOpacity onPress={goToSetMonthlyBudget}>
                   <View style={styles.sectionBox}>
-                    <Text style={styles.sectionTitle}>Monthly Budget</Text>
+                    <Text style={styles.sectionTitle}>
+                      Monthly Budget (Limit)
+                    </Text>
 
                     <View style={styles.budgetContainer}>
                       <View
-                        style={[
-                          styles.circle,
-                          {
-                            borderColor:
-                              monthlyBudget > 0 && monthlyRemaining < 0
-                                ? "#f05850c4"
-                                : "#007AFF",
-                          },
-                        ]}
+                        style={{
+                          width: size,
+                          height: size,
+                          justifyContent: "center",
+                          alignItems: "center",
+                        }}
                       >
-                        {monthlyBudget === 0 ? (
-                          <Text style={{ fontSize: 11, color: "#555" }}>
-                            SET
-                          </Text>
-                        ) : monthlyRemaining < 0 ? (
-                          <Text
-                            style={{
-                              color: "#f05850c4",
-                              fontWeight: "bold",
-                              fontSize: 11,
-                            }}
-                          >
-                            EXCEED
-                          </Text>
-                        ) : (
-                          <>
-                            <Text style={{ fontSize: 12, color: "#555" }}>
-                              Remaining
-                            </Text>
+                        <Svg width={size} height={size}>
+                          {/* BACKGROUND RING */}
+                          <Circle
+                            cx={size / 2}
+                            cy={size / 2}
+                            r={radius}
+                            stroke="#eee"
+                            strokeWidth={strokeWidth}
+                            fill="none"
+                          />
 
-                            <Text style={{ fontWeight: "bold", fontSize: 14 }}>
-                              {monthlyPercentage.toFixed(0)}%
+                          {/* PROGRESS RING */}
+                          <Circle
+                            cx={size / 2}
+                            cy={size / 2}
+                            r={radius}
+                            stroke={
+                              monthlyBudgetRemaining < 0
+                                ? "#f05850c4" // 🔴 EXCEED RED
+                                : "#007AFF"   // 🔵 NORMAL BLUE
+                            }
+                            strokeWidth={strokeWidth}
+                            fill="none"
+                            strokeDasharray={circumference}
+                            strokeDashoffset={
+                              monthlyBudgetLimit > 0
+                                ? circumference -
+                                  ((monthlyBudgetRemaining < 0
+                                    ? 100
+                                    : (monthlyBudgetRemaining / monthlyBudgetLimit) * 100) /
+                                      100) *
+                                    circumference
+                                : circumference
+                            }
+                            strokeLinecap="round"
+                            rotation="-90"
+                            originX={size / 2}
+                            originY={size / 2}
+                          />
+                        </Svg>
+
+                        {/* CENTER TEXT */}
+                        <View style={{ position: "absolute", alignItems: "center" }}>
+                          {monthlyBudgetLimit === 0 ? (
+                            <Text>SET</Text>
+                          ) : monthlyBudgetRemaining < 0 ? (
+                            <Text style={{ color: "#f05850c4", fontWeight: "bold" }}>
+                              EXCEED
                             </Text>
-                          </>
-                        )}
+                          ) : (
+                            <>
+                              <Text style={{ fontSize: 12 }}>Remaining</Text>
+                              <Text style={{ fontWeight: "bold" }}>
+                                {monthlyPercentage.toFixed(0)}%
+                              </Text>
+                            </>
+                          )}
+                        </View>
                       </View>
 
                       <View>
-                        <Text>Budget: RM {monthlyBudget.toFixed(2)}</Text>
-                        <Text>Expenses: RM {monthlyExpenseTotal.toFixed(2)}</Text>
-                        <Text>Remaining: RM {monthlyRemaining.toFixed(2)}</Text>
+                        <Text>
+                          Budget: RM {monthlyBudgetLimit.toFixed(2)}
+                        </Text>
+                        <Text>
+                          Expenses: RM {monthlySpent.toFixed(2)}
+                        </Text>
+                        <Text>
+                          Remaining: RM {monthlyBudgetRemaining.toFixed(2)}
+                        </Text>
                       </View>
                     </View>
                   </View>
