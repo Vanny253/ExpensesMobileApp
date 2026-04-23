@@ -370,6 +370,7 @@ useEffect(() => {
 
       {showDatePicker && (
         <DateTimePicker
+          value={date}
           mode="date"
           display="default"
           onChange={(event, selectedDate) => {

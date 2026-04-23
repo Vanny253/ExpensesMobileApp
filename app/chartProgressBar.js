@@ -195,7 +195,7 @@ export default function ChartProgressBar() {
     <View style={styles.container}>
 
       <AppHeader
-          title="Regular Payment Detail"
+          title="Progress Bar Detail"
           backRoute="/drawer/tabs/charts"
         />
 
@@ -224,12 +224,22 @@ export default function ChartProgressBar() {
                   <View style={styles.left}>
                     <Ionicons
                       name={resolved?.icon || "help-circle"}
-                      size={20}
+                      size={25}
                       color="#555"
                     />
-                    <Text style={styles.itemTitle}>
-                      {resolved?.name || item.category}
-                    </Text>
+
+                    <View>
+                      <Text style={styles.itemTitle}>
+                        {resolved?.name || item.category}
+                      </Text>
+
+                      {/* ⭐ ADD TITLE HERE */}
+                      {item.title ? (
+                        <Text style={styles.itemSubtitle}>
+                          {item.title}
+                        </Text>
+                      ) : null}
+                    </View>
                   </View>
 
                   <View style={styles.right}>
@@ -307,6 +317,11 @@ const styles = StyleSheet.create({
   left: {
     flexDirection: "row",
     alignItems: "center",
+  },
+    itemSubtitle: {
+    fontSize: 12,
+    color: "#666",
+    marginLeft: 6,
   },
 
   right: {
