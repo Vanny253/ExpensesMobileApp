@@ -14,6 +14,9 @@ import { useRouter } from "expo-router";
 import BottomTabs from "../../components/_BottomTabs";
 import { getRegularPayments } from "../../api/regularPaymentApi";
 import BackgroundWrapper from "../../components/backgroundWrapper";
+import { getCategories } from "../../api/categoryApi";
+import { DEFAULT_EXPENSE_CATEGORIES } from "../../components/defaultIcon";
+
 
 
 export default function RegularPaymentScreen() {
@@ -22,6 +25,54 @@ export default function RegularPaymentScreen() {
 
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [categoryMap, setCategoryMap] = useState({});
+
+
+  const loadCategoryMap = async () => {
+    if (!user) return;
+
+    try {
+      const dbCats = await getCategories(user.user_id, "expense");
+
+      const map = {};
+
+      dbCats.forEach((c) => {
+        const id = String(c?.id ?? "").toLowerCase().trim();
+        const name = c?.name;
+
+        if (id && name) {
+          map[id] = name;
+          map[name.toLowerCase()] = name;
+        }
+      });
+
+      setCategoryMap(map);
+
+      console.log("CATEGORY MAP:", map);
+    } catch (err) {
+      console.log("CATEGORY MAP ERROR:", err);
+    }
+  };
+
+
+  useEffect(() => {
+    if (user) {
+      loadPayments();
+      loadCategoryMap();
+    }
+  }, [user]);
+
+  const getCategoryName = (value) => {
+    if (!value) return "-";
+
+    const key = String(value).toLowerCase().trim();
+
+    // 1. try map lookup
+    if (categoryMap[key]) return categoryMap[key];
+
+    // 2. fallback if already name (Food, Games, etc.)
+    return value;
+  };
 
   const loadPayments = async () => {
     if (!user) {
@@ -79,27 +130,38 @@ export default function RegularPaymentScreen() {
             <FlatList
               data={payments}
               keyExtractor={(item) => item.id.toString()}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  onPress={() =>
-                    router.push({
-                      pathname: "/regularPaymentDetail",
-                      params: {
-                        payment: JSON.stringify(item),
-                      },
-                    })
-                  }
-                >
-                  <View style={styles.card}>
-                    <Text style={styles.title}>{item.title}</Text>
-                    <Text>Type: {item.type}</Text>
-                    <Text>Category: {item.category}</Text>
-                    <Text>Amount: RM{item.amount.toFixed(2)}</Text>
-                    <Text>Frequency: {item.frequency}</Text>
-                    <Text>Date: {item.start_date}</Text>
-                  </View>
-                </TouchableOpacity>
-              )}
+              renderItem={({ item }) => {
+                const key = String(item.category).trim();
+
+                console.log("ITEM CATEGORY:", item.category);
+                console.log("LOOKUP:", categoryMap[key]);
+
+                return (
+                  <TouchableOpacity
+                    onPress={() =>
+                      router.push({
+                        pathname: "/regularPaymentDetail",
+                        params: {
+                          payment: JSON.stringify(item),
+                        },
+                      })
+                    }
+                  >
+                    <View style={styles.card}>
+                      <Text style={styles.title}>{item.title}</Text>
+                      <Text>Type: {item.type}</Text>
+
+                      <Text>
+                        Category: {categoryMap[key] || item.category}
+                      </Text>
+
+                      <Text>Amount: RM{item.amount.toFixed(2)}</Text>
+                      <Text>Frequency: {item.frequency}</Text>
+                      <Text>Date: {item.start_date}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              }}
               ListEmptyComponent={
                 <Text style={{ textAlign: "center", marginTop: 20 }}>
                   No regular payments yet.
