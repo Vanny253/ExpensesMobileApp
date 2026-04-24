@@ -1070,9 +1070,10 @@ def extract_amount(text):
     lines = text.upper().split("\n")
 
     total_keywords = [
-        "TOTAL", "GRAND TOTAL", "AMOUNT DUE",
+        "GRAND TOTAL", "AMOUNT DUE",
         "NET TOTAL", "TOTAL AMOUNT",
-        "TOTAL PAYMENT", "BALANCE DUE"
+        "TOTAL PAYMENT", "BALANCE DUE",
+        "TOTAL"
     ]
 
     def find_amounts(line):
@@ -1085,7 +1086,8 @@ def extract_amount(text):
         clean = re.sub(r"\s+", " ", line)
 
         for kw in total_keywords:
-            if kw in clean:
+            pattern = r"\b" + re.escape(kw) + r"\b"
+            if re.search(pattern, clean):
                 amounts = find_amounts(clean)
                 if amounts:
                     return float(amounts[-1])
