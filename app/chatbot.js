@@ -480,14 +480,14 @@ export default function ChatbotScreen() {
       if (!uri) return;
 
       // show UI feedback (safe now)
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          text: "🎤 Processing voice...",
-          time: new Date().toLocaleTimeString(),
-        },
-      ]);
+      // setMessages((prev) => [
+      //   ...prev,
+      //   {
+      //     role: "assistant",
+      //     text: "🎤 Processing voice...",
+      //     time: new Date().toLocaleTimeString(),
+      //   },
+      // ]);
 
       // 🔥 CALL ONLY ONCE
       await sendAudioToBackend(uri);
@@ -741,7 +741,30 @@ const sendMessageToAI = async (message) => {
   }
 };
 
+const appendMessage = (role, text, actions = null) => {
+  const newMsg = {
+    role,
+    text,
+    actions,
+    time: new Date().toLocaleTimeString(),
+  };
+
+  setMessages((prev) => {
+    const updated = [...prev, newMsg];
+
+    // optional: keep storage in sync immediately
+    saveToStorage(updated);
+
+    return updated;
+  });
+};
+
+
 const handleSend = () => {
+
+  const text = inputText.trim();
+  if (!text) return;
+  appendMessage("user", text);
   handleUserInput(inputText, "text");
   setInputText("");
 };

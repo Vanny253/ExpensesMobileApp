@@ -210,7 +210,7 @@ useEffect(() => {
     scanId,
   } = params;
 
-  // 🔥 prevent duplicate scan (THIS FIXES YOUR BUG)
+  //  prevent duplicate scan
   if (scanId === lastScanId) return;
 
   setLastScanId(scanId);
@@ -228,7 +228,19 @@ useEffect(() => {
   };
 
   if (scannedDate) {
-    const parsed = parseDMY(scannedDate);
+    let parsed = null;
+
+    // ✅ format: YYYY-MM-DD (your current backend)
+    if (scannedDate.includes("-")) {
+      parsed = new Date(scannedDate);
+    }
+
+    // fallback: DD/MM/YYYY (if old format ever comes)
+    else if (scannedDate.includes("/")) {
+      const [d, m, y] = scannedDate.split("/");
+      parsed = new Date(y, m - 1, d);
+    }
+
     if (parsed && !isNaN(parsed.getTime())) {
       setDate(parsed);
     }

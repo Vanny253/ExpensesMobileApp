@@ -81,10 +81,10 @@ export default function RootLayout() {
         />
 
         <Drawer.Screen
-          name="contact_us"
+          name="feedback"
           options={{
-            drawerLabel: "Contact Us",
-            title: "Contact Us",
+            drawerLabel: "Review and Feedback",
+            title: "Review and Feedback",
             headerStyle: {
               backgroundColor: "#a3d2fe",
             },

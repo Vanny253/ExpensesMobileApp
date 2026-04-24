@@ -3,7 +3,7 @@ from flask import Flask, request, jsonify
 from flask_apscheduler import APScheduler
 from flask_cors import CORS
 from config import SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS
-from models import db, Expense, Income, User, Budget, Category, RegularPayment, MonthlyBudget
+from models import db, Expense, Income, User, Budget, Category, RegularPayment, MonthlyBudget, Feedback
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 from sqlalchemy import func
@@ -941,6 +941,59 @@ def get_monthly_budgets(user_id):
 
 
 
+# -------------------- FEEDBACK ENDPOINTS --------------------
+
+@app.route('/api/feedback', methods=['POST'])
+def create_feedback():
+    data = request.get_json()
+
+    print("DEBUG DATA:", data)
+
+    try:
+        user_id = data.get("user_id")
+        rating = data.get("rating")
+        comment = data.get("feedback")
+
+        # ----------------------
+        # VALIDATION
+        # ----------------------
+        if not user_id:
+            return jsonify({"message": "user_id required"}), 400
+
+        if not rating:
+            return jsonify({"message": "rating required"}), 400
+
+        # optional: check user exists (VERY GOOD PRACTICE)
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({"message": "User not found"}), 404
+
+        # ----------------------
+        # SAVE FEEDBACK
+        # ----------------------
+        new_feedback = Feedback(
+            user_id=user_id,
+            rating=rating,
+            comment=comment
+        )
+
+        db.session.add(new_feedback)
+        db.session.commit()
+
+        return jsonify({
+            "message": "Feedback submitted successfully"
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        print("ERROR:", str(e))
+        return jsonify({"error": str(e)}), 500
+
+
+
+
+
+
 
 
 
@@ -973,12 +1026,12 @@ def ocr():
         image = cv2.threshold(image, 150, 255, cv2.THRESH_BINARY)[1]
 
         # ================================
-        # 🔍 OCR
+        #  OCR
         # ================================
         text = pytesseract.image_to_string(image)
 
         # ================================
-        # 🧹 CLEAN TEXT
+        #  CLEAN TEXT
         # ================================
         text = text.upper()
         text = text.replace(",", ".")  # normalize decimal
@@ -992,7 +1045,7 @@ def ocr():
         print("OCR TEXT:\n", text)
 
         # ================================
-        # 📊 EXTRACT
+        #  EXTRACT
         # ================================
         amount = extract_amount(text)
         date = extract_date(text)
@@ -1333,7 +1386,6 @@ def normalize_date(date_str):
 
 
 
-
 # =========================================================
 # 📡 API ENDPOINT (REPLACE OLD ONE)
 # =========================================================
@@ -1372,265 +1424,6 @@ def parse_einvoice():
 
 
 
-# load_dotenv()
-# client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-
-# # =========================
-# # 🔥 GET USER CATEGORIES
-# # =========================
-# def get_user_categories(user_id):
-#     categories = Category.query.filter_by(
-#         user_id=user_id,
-#         type="expense"   # only expense categories
-#     ).all()
-
-#     return [c.name for c in categories]
-
-
-# # =========================
-# # 🎤 TRANSCRIBE API
-# # =========================
-# @app.route("/transcribe", methods=["POST"])
-# def transcribe():
-#     try:
-#         print("🔥 REQUEST RECEIVED")
-
-#         # =========================
-#         # ✅ CHECK FILE
-#         # =========================
-#         if "file" not in request.files:
-#             return jsonify({"error": "No file uploaded"}), 400
-
-#         file = request.files["file"]
-
-#         # =========================
-#         # ✅ GET USER ID
-#         # =========================
-#         user_id = request.form.get("userId")
-
-#         if not user_id:
-#             return jsonify({"error": "Missing userId"}), 400
-
-#         user_id = int(user_id)
-
-#         print("👤 USER ID:", user_id)
-
-#         # =========================
-#         # ✅ SAVE AUDIO
-#         # =========================
-#         filepath = "temp.m4a"
-#         file.save(filepath)
-
-#         # =========================
-#         # 🎤 WHISPER
-#         # =========================
-#         with open(filepath, "rb") as audio:
-#             transcript = client.audio.transcriptions.create(
-#                 model="gpt-4o-mini-transcribe",
-#                 file=audio
-#             )
-
-#         text = transcript.text
-#         print("🗣 TRANSCRIBED TEXT:", text)
-
-#         # =========================
-#         # 📂 GET USER CATEGORIES
-#         # =========================
-#         categories = get_user_categories(user_id)
-
-#         # fallback (important)
-#         if not categories:
-#             categories = ["food", "transport", "billing"]
-
-#         print("📂 USER CATEGORIES:", categories)
-
-#         # =========================
-#         # 🧠 GPT PROMPT
-#         # =========================
-#         today = datetime.today().strftime("%Y-%m-%d")
-
-#         prompt = get_expense_prompt(text, today, categories)
-
-#         print("🧠 PROMPT SENT TO AI")
-
-#         # =========================
-#         # 🤖 GPT CALL
-#         # =========================
-#         chat = client.chat.completions.create(
-#             model="gpt-4o-mini",
-#             messages=[{"role": "user", "content": prompt}],
-#             response_format={"type": "json_object"}
-#         )
-
-#         result = chat.choices[0].message.content
-#         print("🤖 RAW GPT RESULT:", result)
-
-#         # =========================
-#         # ✅ PARSE JSON
-#         # =========================
-#         try:
-#             parsed = json.loads(result)
-#         except:
-#             parsed = {
-#                 "amount": None,
-#                 "note": "General expense",
-#                 "suggestedCategory": "",
-#                 "date": today
-#             }
-
-#         print("✅ FINAL PARSED:", parsed)
-
-#         # =========================
-#         # ✅ RESPONSE
-#         # =========================
-#         return jsonify({
-#             "text": text,
-#             "result": parsed
-#         })
-
-#     except Exception as e:
-#         print("🔥 BACKEND ERROR:", str(e))
-#         return jsonify({
-#             "error": str(e)
-#         }), 500
-
-
-
-# @app.route("/chat", methods=["POST"])
-# def chat():
-#     try:
-#         data = request.json
-
-#         user_input = data.get("message")
-#         user_id = data.get("userId")
-#         current_expense = data.get("currentExpense")  # from frontend
-
-#         if not user_input:
-#             return jsonify({"error": "Missing message"}), 400
-
-#         # =========================
-#         # 🧠 DETECT INTENT
-#         # =========================
-#         intent_prompt = detect_intent_prompt(user_input)
-
-#         intent_res = client.chat.completions.create(
-#             model="gpt-4o-mini",
-#             messages=[{"role": "user", "content": intent_prompt}],
-#             response_format={"type": "json_object"}
-#         )
-
-#         intent_json = json.loads(intent_res.choices[0].message.content)
-#         intent = intent_json.get("intent")
-
-#         print("🧠 INTENT:", intent)
-
-#         # =========================
-#         # 📂 GET CATEGORIES
-#         # =========================
-#         categories = get_user_categories(user_id)
-#         if not categories:
-#             categories = ["food", "transport", "billing"]
-
-#         today = datetime.today().strftime("%Y-%m-%d")
-
-#         # =========================
-#         # 🧾 HANDLE INTENTS
-#         # =========================
-
-#         # 1️⃣ EXTRACT NEW EXPENSE
-#         if intent == "extract":
-#             prompt = get_expense_prompt(user_input, today, categories)
-
-#             res = client.chat.completions.create(
-#                 model="gpt-4o-mini",
-#                 messages=[{"role": "user", "content": prompt}],
-#                 response_format={"type": "json_object"}
-#             )
-
-#             parsed = json.loads(res.choices[0].message.content)
-
-#             return jsonify({
-#                 "intent": "extract",
-#                 "expense": parsed
-#             })
-
-#         # 2️⃣ UPDATE EXISTING EXPENSE
-#         elif intent == "update":
-#             if not current_expense:
-#                 return jsonify({"error": "No current expense to update"}), 400
-
-#             prompt = update_expense_prompt(user_input, current_expense)
-
-#             res = client.chat.completions.create(
-#                 model="gpt-4o-mini",
-#                 messages=[{"role": "user", "content": prompt}],
-#                 response_format={"type": "json_object"}
-#             )
-
-#             updated = json.loads(res.choices[0].message.content)
-
-#             return jsonify({
-#                 "intent": "update",
-#                 "expense": updated
-#             })
-
-#         # 3️⃣ CONFIRM & SAVE
-#         elif intent == "confirm":
-#             if not current_expense:
-#                 return jsonify({"error": "Nothing to save"}), 400
-
-#             # 👉 SAVE TO DATABASE HERE
-#             new_expense = Expense(
-#                 user_id=user_id,
-#                 amount=current_expense["amount"],
-#                 note=current_expense["note"],
-#                 category=current_expense["suggestedCategory"],
-#                 date=current_expense["date"]
-#             )
-
-#             db.session.add(new_expense)
-#             db.session.commit()
-
-#             return jsonify({
-#                 "intent": "confirm",
-#                 "message": "Expense saved successfully"
-#             })
-
-#         elif intent == "chat":
-#             return jsonify({
-#                 "intent": "chat",
-#                 "message": "👋 What can I help you?",
-#                 "actions": [
-#                     "Add Expense",
-#                     "Add Budget",
-#                     "Add Regular Payment"
-#                 ]
-#             })
-
-#         else:
-#             return jsonify({"error": "Unknown intent"}), 400
-
-#     except Exception as e:
-#         print("🔥 CHAT ERROR:", str(e))
-#         return jsonify({"error": str(e)}), 500
-
-
-# @app.route("/ai-extract-expense", methods=["POST"])
-# def ai_extract_expense():
-#     try:
-#         data = request.json
-#         text = data.get("text")
-
-#         result = call_openai(prompt)
-
-#         return jsonify(result)
-
-#     except Exception as e:
-#         print("ERROR:", e)
-#         return jsonify({
-#             "error": str(e)
-#         }), 500
 
 
 
@@ -1729,7 +1522,8 @@ def transcribe():
 
         Return JSON:
         {{
-        "intent": "add_expense | add_budget | add_regular_payment | query_total | query_category | query_summary | unknown"
+        "intent": "add_expense | add_budget | add_regular_payment 
+        | query_total | query_category | query_summary | unknown"
         }}
         """
 

@@ -52,20 +52,6 @@ export default function AboutUsScreen() {
             </Text>
           </View>
 
-          {/* Developer Info */}
-          <Text style={styles.sectionTitle}>Developer</Text>
-
-          <View style={styles.card}>
-            <Text style={styles.text}>Developed as a Final Year Project (FYP)</Text>
-            <Text style={styles.text}>Name: Vanny Lai</Text>
-            <Text style={styles.text}>
-              University: Universiti Tunku Abdul Rahman (UTAR)
-            </Text>
-            <Text style={styles.text}>
-              Programme: Bachelor of Information Systems
-            </Text>
-          </View>
-
           {/* Version */}
           <Text style={styles.sectionTitle}>Version</Text>
           <View style={styles.card}>
