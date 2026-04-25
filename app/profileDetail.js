@@ -39,17 +39,23 @@ export default function ProfileDetail() {
     user?.profile_image ? user.profile_image : null
   );
 
-  // 📸 Pick Image
+  // 📸 Pick Image (FIXED VERSION)
   const pickImage = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
-    });
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: [ImagePicker.MediaType.Images], // ✅ FIXED (no deprecated API)
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+      });
 
-    if (!result.canceled) {
-      setImage(result.assets[0].uri);
+      if (!result.canceled && result.assets?.length > 0) {
+        const selectedImage = result.assets[0].uri;
+        setImage(selectedImage);
+      }
+    } catch (error) {
+      console.log("Image Picker Error:", error);
+      Alert.alert("Error", "Failed to pick image");
     }
   };
 
