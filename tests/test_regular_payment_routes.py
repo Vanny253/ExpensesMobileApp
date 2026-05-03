@@ -1,3 +1,4 @@
+# integration test
 from conftest import _create_regular_payment, _create_user
 
 
@@ -151,7 +152,7 @@ def test_delete_regular_payment_removes_record(backend_app_module, client, app_c
 
     assert response.status_code == 200
     assert response.get_json() == {"message": "Regular payment deleted"}
-    assert backend_app_module.RegularPayment.query.get(payment.id) is None
+    assert backend_app_module.db.session.get(backend_app_module.RegularPayment, payment.id) is None
 
 
 def test_delete_regular_payment_returns_404_for_missing_record(client, app_ctx):

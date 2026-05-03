@@ -1,3 +1,4 @@
+# integration test
 def test_create_feedback_submits_feedback(backend_app_module, client, app_ctx):
     user = backend_app_module.User(
         email="feedback@example.com",

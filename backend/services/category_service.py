@@ -45,7 +45,7 @@ class CategoryService:
 
     @staticmethod
     def update(category_id, data):
-        category = Category.query.get(category_id)
+        category = db.session.get(Category, category_id)
         if not category:
             return jsonify({"message": "Category not found"}), 404
 
@@ -73,7 +73,7 @@ class CategoryService:
 
     @staticmethod
     def delete(category_id):
-        category = Category.query.get(category_id)
+        category = db.session.get(Category, category_id)
         if not category:
             return jsonify({"message": "Category not found"}), 404
 

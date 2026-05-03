@@ -72,7 +72,7 @@ class UserService:
 
     @staticmethod
     def get_user(user_id):
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id)
         if user:
             return jsonify(
                 {
@@ -90,7 +90,7 @@ class UserService:
 
     @staticmethod
     def update_user(user_id, data, files):
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id)
         if not user:
             return jsonify({"message": "User not found"}), 404
 
@@ -114,7 +114,9 @@ class UserService:
                 filename = secure_filename(file.filename)
                 filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
                 file.save(filepath)
-                user.profile_image = filepath
+                user.profile_image = filename
+                print("Saved filename:", filename)
+                print("Saved filepath:", filepath)
 
             db.session.commit()
         except ValueError:
@@ -132,8 +134,15 @@ class UserService:
     @staticmethod
     def _serialize_user(user, include_full_image_path=False):
         profile_image = user.profile_image
+
         if include_full_image_path and profile_image:
-            profile_image = f"http://192.168.0.10:5000/{profile_image}"
+            from flask import request
+
+            base_url = request.host_url.rstrip("/")
+
+            profile_image = (
+                f"{base_url}/static/uploads/{profile_image}"
+            )
 
         return {
             "user_id": user.user_id,

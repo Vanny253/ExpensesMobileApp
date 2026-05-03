@@ -18,7 +18,7 @@ class FeedbackService:
             if not rating:
                 return jsonify({"message": "rating required"}), 400
 
-            user = User.query.get(user_id)
+            user = db.session.get(User, user_id)
             if not user:
                 return jsonify({"message": "User not found"}), 404
 

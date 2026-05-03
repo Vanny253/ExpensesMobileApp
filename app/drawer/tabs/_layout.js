@@ -299,9 +299,11 @@ export default function TabsLayout() {
             borderTopLeftRadius: 20,
             borderTopRightRadius: 20,
           }}>
-            <TouchableOpacity onPress={() => setChatVisible(false)}>
-              <Ionicons name="close" size={28} />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+              <TouchableOpacity onPress={() => setChatVisible(false)}>
+                <Ionicons name="close" size={32} />
+              </TouchableOpacity>
+            </View>
 
             <Chatbot />
           </View>

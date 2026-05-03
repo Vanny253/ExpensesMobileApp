@@ -1,3 +1,4 @@
+# integration test
 from conftest import _create_category, _create_user
 
 
@@ -102,7 +103,7 @@ def test_delete_category_removes_record(backend_app_module, client, app_ctx):
 
     assert response.status_code == 200
     assert response.get_json() == {"message": "Category deleted"}
-    assert backend_app_module.Category.query.get(category.id) is None
+    assert backend_app_module.db.session.get(backend_app_module.Category, category.id) is None
 
 
 def test_delete_category_returns_404_for_missing_record(client, app_ctx):

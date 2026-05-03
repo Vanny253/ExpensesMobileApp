@@ -61,7 +61,7 @@ class RegularPaymentService:
 
     @staticmethod
     def update(payment_id, data):
-        payment = RegularPayment.query.get(payment_id)
+        payment = db.session.get(RegularPayment, payment_id)
         if not payment:
             return jsonify({"message": "Regular payment not found"}), 404
 
@@ -84,7 +84,7 @@ class RegularPaymentService:
 
     @staticmethod
     def delete(payment_id):
-        payment = RegularPayment.query.get(payment_id)
+        payment = db.session.get(RegularPayment, payment_id)
         if not payment:
             return jsonify({"message": "Regular payment not found"}), 404
 

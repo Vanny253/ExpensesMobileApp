@@ -1,3 +1,4 @@
+# integration test
 from conftest import _create_income, _create_user
 
 
@@ -113,7 +114,7 @@ def test_delete_income_removes_record(backend_app_module, client, app_ctx):
 
     assert response.status_code == 200
     assert response.get_json() == {"message": "Income deleted"}
-    assert backend_app_module.Income.query.get(income.id) is None
+    assert backend_app_module.db.session.get(backend_app_module.Income, income.id) is None
 
 
 def test_delete_income_returns_404_for_missing_record(client, app_ctx):

@@ -1093,7 +1093,7 @@ const handleRegularPaymentFlow = async (text) => {
         <TouchableOpacity
           onPress={clearChat}
         >
-          <Ionicons name="trash-outline" size={26} color="red" />
+          <Ionicons name="trash-outline" size={26} color="red" paddingRight="3"/>
         </TouchableOpacity>
 
       </View>

@@ -85,7 +85,7 @@ class BudgetService:
         if amount is None:
             return jsonify({"message": "Amount is required"}), 400
 
-        budget = Budget.query.get(budget_id)
+        budget = db.session.get(Budget, budget_id)
         if not budget:
             return jsonify({"message": "Budget not found"}), 404
 
@@ -95,7 +95,7 @@ class BudgetService:
 
     @staticmethod
     def delete(budget_id):
-        budget = Budget.query.get(budget_id)
+        budget = db.session.get(Budget, budget_id)
         if not budget:
             return jsonify({"message": "Budget not found"}), 404
 
@@ -195,7 +195,7 @@ class MonthlyBudgetService:
     @staticmethod
     def update(budget_id, data):
         amount = data.get("amount")
-        budget = MonthlyBudget.query.get(budget_id)
+        budget = db.session.get(MonthlyBudget, budget_id)
         if not budget:
             return jsonify({"message": "Not found"}), 404
 

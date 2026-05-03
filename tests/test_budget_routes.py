@@ -1,3 +1,4 @@
+# integration test
 from conftest import _create_budget, _create_expense, _create_monthly_budget, _create_user
 
 
@@ -95,7 +96,7 @@ def test_delete_budget_removes_record(backend_app_module, client, app_ctx):
 
     assert response.status_code == 200
     assert response.get_json() == {"message": "Budget deleted"}
-    assert backend_app_module.Budget.query.get(budget.id) is None
+    assert backend_app_module.db.session.get(backend_app_module.Budget, budget.id) is None
 
 
 def test_delete_budget_returns_404_for_missing_record(client, app_ctx):

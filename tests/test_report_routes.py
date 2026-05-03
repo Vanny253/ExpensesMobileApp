@@ -1,3 +1,4 @@
+# integration test
 from conftest import _create_budget, _create_expense, _create_income, _create_user
 
 

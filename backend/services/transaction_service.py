@@ -63,7 +63,7 @@ class ExpenseService:
 
     @staticmethod
     def update(expense_id, data):
-        expense = Expense.query.get(expense_id)
+        expense = db.session.get(Expense, expense_id)
         if not expense:
             return jsonify({"message": "Expense not found"}), 404
 
@@ -93,7 +93,7 @@ class ExpenseService:
 
     @staticmethod
     def delete(expense_id):
-        expense = Expense.query.get(expense_id)
+        expense = db.session.get(Expense, expense_id)
         if not expense:
             return jsonify({"message": "Expense not found"}), 404
 
@@ -160,7 +160,7 @@ class IncomeService:
 
     @staticmethod
     def update(income_id, data):
-        income = Income.query.get(income_id)
+        income = db.session.get(Income, income_id)
         if not income:
             return jsonify({"message": "Income not found"}), 404
 
@@ -191,7 +191,7 @@ class IncomeService:
 
     @staticmethod
     def delete(income_id):
-        income = Income.query.get(income_id)
+        income = db.session.get(Income, income_id)
         if not income:
             return jsonify({"message": "Income not found"}), 404
 
