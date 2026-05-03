@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   View,
+  TouchableOpacity,
 } from "react-native";
 
 import { getCategories } from "../api/categoryApi";
@@ -219,50 +220,65 @@ export default function ChartProgressBar() {
               const resolved = resolveCategory(item.category);
 
               return (
-                <View style={styles.card}>
+                <TouchableOpacity
+                  onPress={() =>
+                    router.push({
+                      pathname: "/transactionDetail",
+                      params: {
+                        id: item.id,
+                        type: item.type,
+                        amount: item.amount,
+                        date: item.date,
+                        category: item.category,
+                        title: item.title,
+                      },
+                    })
+                  }
+                >
+                  <View style={styles.card}>
 
-                  <View style={styles.left}>
-                    <Ionicons
-                      name={resolved?.icon || "help-circle"}
-                      size={25}
-                      color="#555"
-                    />
+                    <View style={styles.left}>
+                      <Ionicons
+                        name={resolved?.icon || "help-circle"}
+                        size={25}
+                        color="#555"
+                      />
 
-                    <View>
-                      <Text style={styles.itemTitle}>
-                        {resolved?.name || item.category}
+                      <View>
+                        <Text style={styles.itemTitle}>
+                          {resolved?.name || item.category}
+                        </Text>
+
+                        {item.title ? (
+                          <Text style={styles.itemSubtitle}>
+                            {item.title}
+                          </Text>
+                        ) : null}
+                      </View>
+                    </View>
+
+                    <View style={styles.right}>
+                      <Text
+                        style={[
+                          styles.amount,
+                          {
+                            color:
+                              item.type === "income"
+                                ? "#1aa34a"
+                                : "#e03131",
+                          },
+                        ]}
+                      >
+                        RM {item.amount}
                       </Text>
 
-                      {/* ⭐ ADD TITLE HERE */}
-                      {item.title ? (
-                        <Text style={styles.itemSubtitle}>
-                          {item.title}
-                        </Text>
-                      ) : null}
+                      <Text style={styles.date}>
+                        {new Date(item.date).toLocaleDateString()}
+                      </Text>
                     </View>
+
                   </View>
-
-                  <View style={styles.right}>
-                    <Text
-                      style={[
-                        styles.amount,
-                        {
-                          color:
-                            item.type === "income"
-                              ? "#1aa34a"
-                              : "#e03131",
-                        },
-                      ]}
-                    >
-                      RM {item.amount}
-                    </Text>
-
-                    <Text style={styles.date}>
-                      {new Date(item.date).toLocaleDateString()}
-                    </Text>
-                  </View>
-
-                </View>
+                </TouchableOpacity>
               );
             }}
           />
