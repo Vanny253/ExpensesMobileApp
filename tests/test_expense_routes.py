@@ -50,6 +50,22 @@ def test_add_expense_validates_date_format(backend_app_module, client, app_ctx):
     assert response.get_json() == {"message": "Invalid date format, use YYYY-MM-DD"}
 
 
+def test_add_expense_returns_404_for_missing_user(client, app_ctx):
+    response = client.post(
+        "/expense",
+        json={
+            "user_id": 999,
+            "title": "Lunch",
+            "amount": 12.5,
+            "category": "food",
+            "date": "2026-04-24",
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.get_json() == {"message": "User not found"}
+
+
 def test_get_expenses_returns_user_expenses_in_descending_date_order(
     backend_app_module, client, app_ctx
 ):

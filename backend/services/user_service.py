@@ -6,7 +6,17 @@ from sqlalchemy.exc import IntegrityError
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
-from models import User, db
+from models import (
+    Budget,
+    Category,
+    Expense,
+    Feedback,
+    Income,
+    MonthlyBudget,
+    RegularPayment,
+    User,
+    db,
+)
 
 
 class UserService:
@@ -135,14 +145,10 @@ class UserService:
     def _serialize_user(user, include_full_image_path=False):
         profile_image = user.profile_image
 
-        if include_full_image_path and profile_image:
+        if profile_image:
             from flask import request
-
             base_url = request.host_url.rstrip("/")
-
-            profile_image = (
-                f"{base_url}/static/uploads/{profile_image}"
-            )
+            profile_image = f"{base_url}/static/uploads/{profile_image}"
 
         return {
             "user_id": user.user_id,
@@ -154,3 +160,31 @@ class UserService:
             "profile_image": profile_image,
             "create_at": user.create_at.isoformat(),
         }
+
+    @staticmethod
+    def delete_user(user_id):
+        user = db.session.get(User, user_id)
+
+        if not user:
+            return jsonify({"message": "User not found"}), 404
+
+        try:
+            for model in (
+                Feedback,
+                MonthlyBudget,
+                RegularPayment,
+                Budget,
+                Category,
+                Income,
+                Expense,
+            ):
+                model.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+
+            db.session.delete(user)
+            db.session.commit()
+            return jsonify({"message": "User deleted successfully"}), 200
+
+        except Exception as e:
+            db.session.rollback()
+            print("DELETE ERROR:", str(e))
+            return jsonify({"message": "Delete failed"}), 500

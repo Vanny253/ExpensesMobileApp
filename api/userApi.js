@@ -46,3 +46,13 @@ export const updateUser = async (user_id, data) => {
   );
   return response.data;
 };
+
+// ---------------- DELETE USER ----------------
+export async function deleteUser(user_id) {
+  try {
+    const response = await axios.delete(`${API_URL}/user/${user_id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+}

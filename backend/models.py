@@ -16,9 +16,9 @@ class User(db.Model):
     create_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # relationship to other tables
-    expenses = db.relationship("Expense", backref="user", lazy=True)
-    incomes = db.relationship("Income", backref="user", lazy=True)
-    categories = db.relationship("Category", backref="user", lazy=True)
+    expenses = db.relationship("Expense", backref="user", lazy=True, cascade="all, delete-orphan")
+    incomes = db.relationship("Income", backref="user", lazy=True, cascade="all, delete-orphan")
+    categories = db.relationship("Category", backref="user", lazy=True, cascade="all, delete-orphan")
 
 
 

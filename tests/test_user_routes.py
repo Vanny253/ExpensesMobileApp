@@ -1,5 +1,13 @@
 # integration test
-from conftest import _create_user
+from conftest import (
+    _create_budget,
+    _create_category,
+    _create_expense,
+    _create_income,
+    _create_monthly_budget,
+    _create_regular_payment,
+    _create_user,
+)
 import io
 
 
@@ -160,7 +168,7 @@ def test_update_user_saves_uploaded_profile_image(
 
     assert response.status_code == 200
     assert saved["path"].replace("\\", "/").endswith("static/uploads/avatar.png")
-    assert user.profile_image.replace("\\", "/") == "static/uploads/avatar.png"
+    assert user.profile_image == "avatar.png"
     assert body["profile_image"].replace("\\", "/").endswith("/static/uploads/avatar.png")
 
 
@@ -220,3 +228,39 @@ def test_update_user_returns_500_when_file_save_fails(
 
     assert response.status_code == 500
     assert response.get_json() == {"message": "Server error"}
+
+
+def test_delete_user_removes_user_and_related_records(
+    backend_app_module, client, app_ctx
+):
+    user = _create_user(backend_app_module, email="delete@example.com")
+    _create_expense(backend_app_module, user.user_id)
+    _create_income(backend_app_module, user.user_id)
+    _create_category(backend_app_module, user.user_id)
+    _create_budget(backend_app_module, user.user_id)
+    _create_monthly_budget(backend_app_module, user.user_id)
+    _create_regular_payment(backend_app_module, user.user_id)
+    backend_app_module.db.session.add(
+        backend_app_module.Feedback(user_id=user.user_id, rating=5, comment="Good")
+    )
+    backend_app_module.db.session.commit()
+
+    response = client.delete(f"/user/{user.user_id}")
+
+    assert response.status_code == 200
+    assert response.get_json() == {"message": "User deleted successfully"}
+    assert backend_app_module.User.query.count() == 0
+    assert backend_app_module.Expense.query.count() == 0
+    assert backend_app_module.Income.query.count() == 0
+    assert backend_app_module.Category.query.count() == 0
+    assert backend_app_module.Budget.query.count() == 0
+    assert backend_app_module.MonthlyBudget.query.count() == 0
+    assert backend_app_module.RegularPayment.query.count() == 0
+    assert backend_app_module.Feedback.query.count() == 0
+
+
+def test_delete_user_returns_404_for_missing_user(client, app_ctx):
+    response = client.delete("/user/999")
+
+    assert response.status_code == 404
+    assert response.get_json() == {"message": "User not found"}

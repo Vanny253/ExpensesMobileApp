@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "react-native";
 import BackgroundWrapper from "../../../components/backgroundWrapper";
 import { useNavigation } from "@react-navigation/native";
+import { deleteUser } from "../../../api/userApi";
 
 
 
@@ -38,17 +39,26 @@ export default function ProfileTab() {
   };
 
   const handleDelete = () => {
-    Alert.alert("Delete Account", "This action cannot be undone!", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => {
-          // TODO: call delete API here
-          setUser(null);
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to permanently delete your account?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteUser(user.user_id);
+              setUser(null);
+              router.replace("/drawer/tabs/profile");
+            } catch (err) {
+              Alert.alert("Error", "Failed to delete account");
+            }
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
 
   return (
@@ -60,7 +70,7 @@ export default function ProfileTab() {
             <View style={styles.card}>
               <Image
                 source={
-                  user?.profile_image
+                  user?.profile_image && user.profile_image !== "default.png"
                     ? { uri: user.profile_image + "?t=" + new Date().getTime() }
                     : require("../../../assets/images/default.png")
                 }

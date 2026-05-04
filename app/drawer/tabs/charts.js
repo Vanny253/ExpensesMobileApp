@@ -326,6 +326,7 @@ export default function ChartScreen() {
     (sum, item) => sum + item.population,
     0
   );
+  
 
   return (
     <BackgroundWrapper>
@@ -440,75 +441,85 @@ export default function ChartScreen() {
           <View style={{ flex: 1 }}>
 
 
-          {/* PIE CHART */}
-          <View style={styles.chartWrapper}>
-            <PieChart
-              data={categoryData.map((c) => ({
-                name: c.name,
-                population: c.population,
-                color: c.color,
-                legendFontColor: "#333",
-                legendFontSize: 14,
-              }))}
-              width={screenWidth - 40}
-              height={220}
-              chartConfig={{ color: () => "#000" }}
-              accessor="population"
-              backgroundColor="transparent"
-              paddingLeft="15"
-              absolute
-            />
-          </View>
+          {/* EMPTY STATE */}
+            {categoryData.length === 0 ? (
+              <View style={styles.emptyScreen}>
+                <Text style={styles.emptyTitle}>
+                  No transactions this {timeframe}.
+                </Text>
+              </View>
+            ) : (
+              <>
+                {/* PIE CHART */}
+                <View style={styles.chartWrapper}>
+                  <PieChart
+                    data={categoryData.map((c) => ({
+                      name: c.name,
+                      population: c.population,
+                      color: c.color,
+                      legendFontColor: "#333",
+                      legendFontSize: 14,
+                    }))}
+                    width={screenWidth - 40}
+                    height={220}
+                    chartConfig={{ color: () => "#000" }}
+                    accessor="population"
+                    backgroundColor="transparent"
+                    paddingLeft="15"
+                    absolute
+                  />
+                </View>
 
-          {/* PROGRESS LIST */}
-          <ScrollView
-            style={styles.progressContainer}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 20 }}
-          >
-            {categoryData.map((item, index) => {
-              const percentage =
-                totalAmount > 0 ? (item.population / totalAmount) * 100 : 0;
-
-              return (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.progressItem}
-                  activeOpacity={0.7}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/chartProgressBar",
-                      params: {
-                        category: item.key,
-                        name: item.name,
-                        timeframe,
-                        subPeriod,
-                      },
-                    })
-                  }
+                {/* PROGRESS LIST */}
+                <ScrollView
+                  style={styles.progressContainer}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={{ paddingBottom: 20 }}
                 >
-                  <View style={styles.progressHeader}>
-                    <Text style={styles.progressLabel}>{item.name}</Text>
-                    <Text style={styles.progressValue}>
-                      RM {item.population.toFixed(2)} ({percentage.toFixed(1)}%)
-                    </Text>
-                  </View>
+                  {categoryData.map((item, index) => {
+                    const percentage =
+                      totalAmount > 0 ? (item.population / totalAmount) * 100 : 0;
 
-                  <View style={styles.progressBarBackground}>
-                    <View
-                      style={[
-                        styles.progressBarFill,
-                        {
-                          width: `${percentage}%`,
-                          backgroundColor: item.color,
-                        },
-                      ]}
-                    />
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+                    return (
+                      <TouchableOpacity
+                        key={index}
+                        style={styles.progressItem}
+                        onPress={() =>
+                          router.push({
+                            pathname: "/chartProgressBar",
+                            params: {
+                              category: item.key,
+                              name: item.name,
+                              timeframe,
+                              subPeriod,
+                            },
+                          })
+                        }
+                      >
+                        <View style={styles.progressHeader}>
+                          <Text style={styles.progressLabel}>{item.name}</Text>
+                          <Text style={styles.progressValue}>
+                            RM {item.population.toFixed(2)} ({percentage.toFixed(1)}%)
+                          </Text>
+                        </View>
+
+                        <View style={styles.progressBarBackground}>
+                          <View
+                            style={[
+                              styles.progressBarFill,
+                              {
+                                width: `${percentage}%`,
+                                backgroundColor: item.color,
+                              },
+                            ]}
+                          />
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </>
+            )}
           </View>
           </View>
         </View>
@@ -643,5 +654,17 @@ const styles = StyleSheet.create({
   progressBarFill: {
     height: "100%",
     borderRadius: 5,
+  },
+
+  emptyScreen: {
+    flex: 1,
+    alignItems: "center",
+    paddingTop: 100,
+  },
+
+  emptyTitle: {
+    fontSize: 16,
+    color: "#333",
+    textAlign: "center",
   },
 });

@@ -2,7 +2,9 @@
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 import calendar
-from models import db, RegularPayment, Expense, Income
+from sqlalchemy.exc import IntegrityError
+
+from models import db, RegularPayment, Expense, Income, User
 
 def generate_transactions(app):
     """
@@ -17,6 +19,14 @@ def generate_transactions(app):
         payments = RegularPayment.query.all()
 
         for payment in payments:
+            if not db.session.get(User, payment.user_id):
+                print(
+                    f"Skipping regular payment {payment.id}: "
+                    f"user_id {payment.user_id} no longer exists."
+                )
+                db.session.delete(payment)
+                continue
+
             # Start from last generated date or start_date
             if payment.last_generated_date:
                 current_date = payment.last_generated_date + timedelta(days=1)
@@ -86,8 +96,12 @@ def generate_transactions(app):
             payment.last_generated_date = today
 
         # Commit all new transactions
-        db.session.commit()
-        print("Transactions generated successfully.")
+        try:
+            db.session.commit()
+            print("Transactions generated successfully.")
+        except IntegrityError as exc:
+            db.session.rollback()
+            print("Scheduler skipped invalid transaction:", str(exc))
 
 
 def register_tasks(scheduler, app):

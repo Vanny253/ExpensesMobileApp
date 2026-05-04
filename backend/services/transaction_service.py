@@ -2,7 +2,9 @@ from datetime import datetime
 
 from flask import jsonify
 
-from models import Expense, Income, db
+from sqlalchemy.exc import IntegrityError
+
+from models import Expense, Income, User, db
 
 
 class ExpenseService:
@@ -11,6 +13,10 @@ class ExpenseService:
         required_fields = ["user_id", "title", "amount", "category", "date"]
         if not all(field in data for field in required_fields):
             return jsonify({"message": "Missing required fields"}), 400
+
+        user = db.session.get(User, data["user_id"])
+        if not user:
+            return jsonify({"message": "User not found"}), 404
 
         try:
             date_obj = datetime.strptime(data["date"], "%Y-%m-%d").date()
@@ -25,7 +31,11 @@ class ExpenseService:
             date=date_obj,
         )
         db.session.add(expense)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            return jsonify({"message": "User not found"}), 404
 
         return jsonify(
             {
@@ -109,6 +119,10 @@ class IncomeService:
         if not all(field in data for field in required_fields):
             return jsonify({"message": "Missing required fields"}), 400
 
+        user = db.session.get(User, data["user_id"])
+        if not user:
+            return jsonify({"message": "User not found"}), 404
+
         try:
             date_obj = datetime.strptime(data["date"], "%Y-%m-%d").date()
         except ValueError:
@@ -122,7 +136,11 @@ class IncomeService:
             date=date_obj,
         )
         db.session.add(income)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            return jsonify({"message": "User not found"}), 404
 
         return jsonify(
             {

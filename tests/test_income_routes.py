@@ -48,6 +48,22 @@ def test_add_income_validates_date_format(backend_app_module, client, app_ctx):
     assert response.get_json() == {"message": "Invalid date format, use YYYY-MM-DD"}
 
 
+def test_add_income_returns_404_for_missing_user(client, app_ctx):
+    response = client.post(
+        "/income",
+        json={
+            "user_id": 999,
+            "title": "Salary",
+            "amount": 2000,
+            "category": "salary",
+            "date": "2026-04-24",
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.get_json() == {"message": "User not found"}
+
+
 def test_get_income_returns_user_records(backend_app_module, client, app_ctx):
     user = _create_user(backend_app_module)
     _create_income(backend_app_module, user.user_id, title="Bonus", date_str="2026-04-15")

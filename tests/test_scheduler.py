@@ -164,3 +164,27 @@ def test_generate_transactions_skips_existing_income_records(
     incomes = backend_app_module.Income.query.filter_by(title="Salary").all()
     assert len(incomes) == 1
     assert payment.last_generated_date == FixedDate.today()
+
+
+def test_generate_transactions_deletes_regular_payment_for_missing_user(
+    backend_app_module, app_ctx, monkeypatch
+):
+    scheduler = load_scheduler_module()
+    monkeypatch.setattr(scheduler, "date", FixedDate)
+
+    payment = backend_app_module.RegularPayment(
+        user_id=999,
+        title="Old User Payment",
+        type="expense",
+        category="food",
+        frequency="Daily",
+        start_date=real_date(2026, 3, 31),
+        amount=5,
+    )
+    backend_app_module.db.session.add(payment)
+    backend_app_module.db.session.commit()
+
+    scheduler.generate_transactions(backend_app_module.app)
+
+    assert backend_app_module.RegularPayment.query.count() == 0
+    assert backend_app_module.Expense.query.count() == 0

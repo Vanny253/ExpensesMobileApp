@@ -23,3 +23,8 @@ def get_user(user_id):
 @user_bp.put("/user/<int:user_id>")
 def update_user(user_id):
     return UserService.update_user(user_id, request.form, request.files)
+
+
+@user_bp.delete("/user/<int:user_id>")
+def delete_user(user_id):
+    return UserService.delete_user(user_id)

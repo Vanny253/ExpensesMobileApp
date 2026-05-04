@@ -23,7 +23,7 @@ def create_app():
     BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
     # ✅ FIX 3: Absolute upload folder path
-    upload_folder = os.path.join(BASE_DIR, "static", "uploads")
+    upload_folder = os.path.join(app.root_path, "static", "uploads")
     os.makedirs(upload_folder, exist_ok=True)
 
     app.config["UPLOAD_FOLDER"] = upload_folder

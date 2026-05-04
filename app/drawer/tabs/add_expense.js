@@ -171,18 +171,23 @@ const TransactionForm = ({ type }) => {
   // =========================
   // RESET WHEN USER ENTERS SCREEN (MANUAL MODE)
   // =========================
-    useFocusEffect(
-      useCallback(() => {
-        fetchCategories();
-        setTitle("");
-        setAmount("");
-        setCategory("");
-        setDate(new Date());
-        setPrefilled(false);
-        setPendingAI(null);
-        setLastScanId(null);
-      }, [])
-    );
+useFocusEffect(
+  useCallback(() => {
+    fetchCategories();
+
+    // ❗ ONLY reset if NOT coming from scan
+    if (!params?.scanId) {
+      setTitle("");
+      setAmount("");
+      setCategory("");
+      setDate(new Date());
+
+      setPrefilled(false);
+      setPendingAI(null);
+    }
+
+  }, [params?.scanId])
+);
 
   useEffect(() => {
     if (!pendingAI) return;
@@ -200,7 +205,6 @@ const TransactionForm = ({ type }) => {
   // =========================
   // APPLY AI / OCR / CHATBOT PREFILL (ONLY ONCE)
   // =========================
-
 useEffect(() => {
   const {
     scannedAmount,
@@ -210,7 +214,9 @@ useEffect(() => {
     scanId,
   } = params;
 
-  //  prevent duplicate scan
+  if (!scanId) return;
+
+  // ✅ ONLY block same scanId (NOT using ref)
   if (scanId === lastScanId) return;
 
   setLastScanId(scanId);
@@ -220,27 +226,18 @@ useEffect(() => {
   if (scannedTitle) setTitle(String(scannedTitle));
   if (scannedAmount) setAmount(String(scannedAmount));
 
-  // DATE FIX (DD/MM/YYYY)
-  const parseDMY = (str) => {
+  const parseDate = (str) => {
     if (!str) return null;
-    const [d, m, y] = str.split("/");
-    return new Date(y, m - 1, d);
+    if (str.includes("-")) return new Date(str);
+    if (str.includes("/")) {
+      const [d, m, y] = str.split("/");
+      return new Date(y, m - 1, d);
+    }
+    return null;
   };
 
   if (scannedDate) {
-    let parsed = null;
-
-    // ✅ format: YYYY-MM-DD (your current backend)
-    if (scannedDate.includes("-")) {
-      parsed = new Date(scannedDate);
-    }
-
-    // fallback: DD/MM/YYYY (if old format ever comes)
-    else if (scannedDate.includes("/")) {
-      const [d, m, y] = scannedDate.split("/");
-      parsed = new Date(y, m - 1, d);
-    }
-
+    const parsed = parseDate(scannedDate);
     if (parsed && !isNaN(parsed.getTime())) {
       setDate(parsed);
     }
@@ -251,7 +248,10 @@ useEffect(() => {
   }
 
   setPrefilled(true);
-}, [params]);
+
+}, [params.scanId]);
+
+
 
   // =========================
   // LOAD CATEGORIES
@@ -298,6 +298,12 @@ useEffect(() => {
   // SUBMIT (MANUAL OR AI SAME FLOW)
   // =========================
   const handleSubmit = async () => {
+    if (!user?.user_id) {
+      Alert.alert("Login required", "Please login before adding a transaction.");
+      router.replace("/drawer/tabs/profile");
+      return;
+    }
+
     if (!amount || !category) {
       Alert.alert("Error", "Please fill in all fields.");
       return;
