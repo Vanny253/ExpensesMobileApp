@@ -585,10 +585,11 @@ const sendAudioToBackend = async (uri = null, textInput = null) => {
       "";
 
     // ✅ show user message
-    if (userText) {
+    if (uri && userText) {
+      // 🎤 ONLY voice will show message here
       addMessage({
         role: "user",
-        text: uri ? `🎤 ${userText}` : userText,
+        text: `🎤 ${userText}`,
         time: new Date().toLocaleTimeString(),
       });
     }

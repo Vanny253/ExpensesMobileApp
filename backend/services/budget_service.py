@@ -48,21 +48,27 @@ class BudgetService:
         ), 201
 
     @staticmethod
-    def get_all(user_id):
-        budgets = Budget.query.filter_by(user_id=user_id).all()
+    def get_all(user_id, args=None):
+        month = args.get("month", type=int) if args else None
+        year = args.get("year", type=int) if args else None
+
+        query = Budget.query.filter_by(user_id=user_id)
+        if month and year:
+            query = query.filter_by(month=month, year=year)
+
+        budgets = query.all()
         result = []
-        now = datetime.now()
-        current_month = now.month
-        current_year = now.year
 
         for budget in budgets:
+            budget_month = month or budget.month
+            budget_year = year or budget.year
             spent = (
                 db.session.query(func.coalesce(func.sum(Expense.amount), 0))
                 .filter(
                     Expense.user_id == user_id,
                     Expense.category == budget.category,
-                    func.extract("month", Expense.date) == current_month,
-                    func.extract("year", Expense.date) == current_year,
+                    func.extract("month", Expense.date) == budget_month,
+                    func.extract("year", Expense.date) == budget_year,
                 )
                 .scalar()
             )
@@ -74,6 +80,8 @@ class BudgetService:
                     "budget": float(budget.amount),
                     "spent": float(spent),
                     "remaining": float(budget.amount - spent),
+                    "month": budget.month,
+                    "year": budget.year,
                 }
             )
 
@@ -176,6 +184,13 @@ class MonthlyBudgetService:
             month=month,
             year=year,
         ).first()
+
+        if not budget and not args:
+            budget = (
+                MonthlyBudget.query.filter_by(user_id=user_id)
+                .order_by(MonthlyBudget.year.desc(), MonthlyBudget.month.desc())
+                .first()
+            )
 
         if not budget:
             return jsonify({"amount": 0}), 200

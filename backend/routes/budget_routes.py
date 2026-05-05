@@ -12,7 +12,7 @@ def add_budget():
 
 @budget_bp.get("/budget/<int:user_id>")
 def get_budgets(user_id):
-    return BudgetService.get_all(user_id)
+    return BudgetService.get_all(user_id, request.args)
 
 
 @budget_bp.put("/budget/<int:budget_id>")
