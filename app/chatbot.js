@@ -18,6 +18,8 @@ import { TextInput } from "react-native";
 import { useUser } from "../context/UserContext";
 import { sendChatMessage } from "../components/chatService";
 import { formatExpense } from "../components/chatFormatter";
+import { getCategories } from "../api/categoryApi";
+
 
 
 export default function ChatbotScreen() {
@@ -39,6 +41,14 @@ export default function ChatbotScreen() {
     ? `chat_messages_${user.user_id}`
     : "chat_messages_guest";
   const [initialized, setInitialized] = useState(false);
+  const [categoryMap, setCategoryMap] = useState({});
+  
+
+  
+  const [inputText, setInputText] = useState("");
+  const [currentExpense, setCurrentExpense] = useState(null);
+  const [activeFlow, setActiveFlow] = useState(null);
+  const [flowData, setFlowData] = useState({});
   
 
   const goToAddExpense = (params) => {
@@ -50,10 +60,45 @@ export default function ChatbotScreen() {
     });
   };
 
-  const [inputText, setInputText] = useState("");
-  const [currentExpense, setCurrentExpense] = useState(null);
-  const [activeFlow, setActiveFlow] = useState(null);
-  const [flowData, setFlowData] = useState({});
+  const loadCategoryMap = async () => {
+  if (!user) return;
+
+  try {
+    const dbCats = await getCategories(user.user_id, "expense");
+
+    const map = {};
+
+    dbCats.forEach((c) => {
+      const id = String(c?.id ?? "").toLowerCase().trim();
+      const name = c?.name;
+
+      if (id && name) {
+        map[id] = name;
+        map[name.toLowerCase()] = name;
+      }
+    });
+
+    setCategoryMap(map);
+  } catch (err) {
+    console.log("CATEGORY MAP ERROR:", err);
+  }
+};
+
+useEffect(() => {
+  if (user) {
+    loadCategoryMap();
+  }
+}, [user]);
+
+const getCategoryName = (value) => {
+  if (!value) return "-";
+
+  const key = String(value).toLowerCase().trim();
+
+  return categoryMap[key] || value;
+};
+
+
 
 
   const saveToStorage = async (data) => {
@@ -585,7 +630,7 @@ const sendAudioToBackend = async (uri = null, textInput = null) => {
 
       const amount = parsed.amount || "";
       const title = parsed.note || "General expense";
-      const category = parsed.suggestedCategory || "General";
+      const category = getCategoryName(parsed.suggestedCategory || "General");
       const date =
         parsed.date || new Date().toISOString().split("T")[0];
 
@@ -840,7 +885,7 @@ const handleExpense = async (text) => {
 
     const amount = parsed.amount || "";
     const title = parsed.note || "General expense";
-    const category = parsed.suggestedCategory || "General";
+    const category = getCategoryName(parsed.suggestedCategory || "General");
     const date = parsed.date || new Date().toISOString().split("T")[0];
 
     addMessage({
@@ -919,7 +964,7 @@ const handleBudgetFlow = async (text) => {
     console.log("🧠 BUDGET PARSED:", data);
 
     const amount = data.amount || "";
-    const category = data.category || "General";
+    const category = getCategoryName(data.category || "General");
 
     addMessage({
       role: "assistant",
@@ -982,7 +1027,7 @@ const handleRegularPaymentFlow = async (text) => {
     const formData = new FormData();
     formData.append("text", text);
     formData.append("userId", String(user.user_id));
-    formData.append("flow", "regularPayment"); // 🔥 HARD FIX
+    formData.append("flow", "regularPayment");
 
     const res = await fetch(`${API_URL}/transcribe`, {
       method: "POST",
@@ -991,37 +1036,41 @@ const handleRegularPaymentFlow = async (text) => {
 
     const data = await res.json();
 
-    // console.log("🧠 BACKEND RESPONSE:", data);
     console.log("🔍 FULL RAW RESPONSE:", JSON.stringify(data, null, 2));
 
-    // ❗ SAFE CHECK (VERY IMPORTANT)
+    // ❌ INVALID RESPONSE CHECK
     if (!data || data.error || !data.result) {
-      console.log("❌ INVALID RESPONSE:", data);
-
       addMessage({
         role: "assistant",
-        text:
-          data?.error ||
-          "❌ Failed to process regular payment",
+        text: data?.error || "❌ Failed to process regular payment",
         time: timeNow,
       });
-
       return;
     }
 
     const parsed = data.result;
 
+    // =========================
+    // CLEAN DATA MAPPING
+    // =========================
     const title = parsed.note || parsed.title || "Untitled";
+
     const amount = parsed.amount || 0;
-    const category = parsed.suggestedCategory || parsed.category || "General";
 
-    let frequency = "Monthly";
-    const t = text.toLowerCase();
+    const category = getCategoryName(
+      parsed.suggestedCategory || parsed.category || "General"
+    );
 
-    if (t.includes("weekly")) frequency = "Weekly";
-    if (t.includes("daily")) frequency = "Daily";
-    if (t.includes("yearly")) frequency = "Yearly";
+    const frequency =
+      parsed.frequency
+        ? parsed.frequency.charAt(0).toUpperCase() + parsed.frequency.slice(1)
+        : "Monthly";
 
+    const date = parsed.date || "";
+
+    // =========================
+    // CHAT MESSAGE
+    // =========================
     addMessage({
       role: "assistant",
       text:
@@ -1029,12 +1078,16 @@ const handleRegularPaymentFlow = async (text) => {
         `📌 Title: ${title}\n` +
         `📂 Category: ${category}\n` +
         `💰 Amount: RM ${amount}\n` +
-        `🔄 Frequency: ${frequency}\n`,
+        `🔄 Frequency: ${frequency}\n` +
+        (date ? `📅 Date: ${date}\n` : ""),
       time: timeNow,
     });
 
     console.log("🚀 NAVIGATING TO ADD REGULAR PAYMENT");
 
+    // =========================
+    // NAVIGATION
+    // =========================
     setTimeout(() => {
       router.push({
         pathname: "/addRegularPayment",
@@ -1043,6 +1096,7 @@ const handleRegularPaymentFlow = async (text) => {
           scannedAmount: String(amount),
           scannedCategory: category,
           frequency,
+          date,
           type: "regular_payment",
           scanId: Date.now().toString(),
         },
@@ -1050,6 +1104,7 @@ const handleRegularPaymentFlow = async (text) => {
     }, 100);
 
     setActiveFlow(null);
+    setFlowData({});
 
   } catch (err) {
     console.log("❌ ERROR:", err);

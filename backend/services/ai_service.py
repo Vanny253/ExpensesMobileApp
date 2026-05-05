@@ -11,6 +11,28 @@ from word2number import w2n
 from models import Category, Expense, db
 from prompts import get_budget_prompt, get_expense_prompt, get_regular_payment_prompt
 
+def parse_relative_date(text, today):
+    if not text:
+        return None
+
+    text = text.lower()
+
+    try:
+        base_date = datetime.strptime(today, "%Y-%m-%d")
+
+        if "yesterday" in text:
+            return (base_date - timedelta(days=1)).strftime("%Y-%m-%d")
+
+        if "today" in text:
+            return base_date.strftime("%Y-%m-%d")
+
+        if "tomorrow" in text:
+            return (base_date + timedelta(days=1)).strftime("%Y-%m-%d")
+
+    except Exception as e:
+        print("RELATIVE DATE ERROR:", e)
+
+    return None
 
 class AIService:
     @staticmethod
@@ -296,6 +318,28 @@ class AIService:
                         result["amount"] = float(w2n.word_to_num(text))
                     except Exception:
                         result["amount"] = 0
+
+
+            parsed_date = result.get("date")
+
+            # 1. AI date first
+            if parsed_date:
+                try:
+                    # fix DD/MM/YYYY confusion
+                    if "/" in parsed_date:
+                        parts = parsed_date.split("/")
+                        if len(parts[0]) <= 2:
+                            # DD/MM/YYYY
+                            parsed_date = f"{parts[2]}-{parts[1].zfill(2)}-{parts[0].zfill(2)}"
+                except:
+                    pass
+
+            # 2. fallback relative date (yesterday/today)
+            if not parsed_date:
+                parsed_date = parse_relative_date(text, today)
+
+            result["date"] = parsed_date
+
 
             return jsonify(
                 {

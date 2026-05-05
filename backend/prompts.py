@@ -143,6 +143,53 @@ CRITICAL RULES:
 - If user says "food", "entertainment", "transport", etc → USE IT EXACTLY
 - Only use "General" if NO category is mentioned
 
+RULES:
+
+1. The FIRST words BEFORE amount = NOTE
+   - Example:
+     "Working 10 weekly Bus 1/5/2026"
+     → note = "Working"
+
+2. Extract amount (number only)
+
+3. Extract category:
+   - must match user category first
+   - fallback to default category
+
+4. Extract frequency:
+   - daily / weekly / monthly / yearly
+
+
+5. Extract date if exists:
+   - format: YYYY-MM-DD
+
+
+DATE PARSING RULES (CRITICAL):
+
+1. If format is ambiguous like:
+   - 1/5/2026
+   - 12/4/2026
+   - 3/6/2026
+
+   ALWAYS interpret as:
+   👉 DD/MM/YYYY (Malaysian format)
+
+   Example:
+   - 1/5/2026 = 1 May 2026 = 2026-05-01
+   - 12/4/2026 = 12 April 2026 = 2026-04-12
+
+2. If format is ISO:
+   - 2026-05-01 → keep as is
+
+3. If natural language:
+   - "today", "tomorrow", "next week"
+   → convert based on system date: {today}
+
+4. ALWAYS output:
+   YYYY-MM-DD
+
+
+
 Available categories:
 {categories}
 
@@ -155,6 +202,7 @@ Return JSON:
   "amount": 0,
   "frequency": "daily | weekly | monthly | yearly",
   "suggestedCategory": ""
+  "date": string | null,
 }}
 
 IMPORTANT:

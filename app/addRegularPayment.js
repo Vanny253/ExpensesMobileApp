@@ -131,6 +131,18 @@ export default function RegularPaymentDetail() {
     }
   };
 
+  const parseLocalDate = (dateStr) => {
+    if (!dateStr) return new Date();
+
+    const parts = dateStr.split("/");
+
+    if (parts.length !== 3) return new Date(dateStr);
+
+    const [day, month, year] = parts;
+
+    return new Date(year, month - 1, day);
+  };
+
   useEffect(() => {
     if (!pendingAI) return;
     if (categories.length === 0) return;
@@ -170,6 +182,10 @@ export default function RegularPaymentDetail() {
         : params.type ?? "expense"
     );
     setFrequency(params.frequency ?? "Monthly");
+
+    if (params.date) {
+      setDate(parseLocalDate(params.date));
+    }
 
     if (params.scannedCategory) {
       setPendingAI(params.scannedCategory.toLowerCase());
