@@ -934,7 +934,7 @@ const askBudgetStep1 = () => {
       "💰 Let's create a budget.\n\n" +
       "Just tell me like:\n" +
       "Food 500\n\n" +
-      "Or include category + amount + month",
+      "Or include category + amount",
     time: new Date().toLocaleTimeString(),
   });
 };
